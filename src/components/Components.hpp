@@ -34,3 +34,12 @@ struct Pulse {
     float baseScale = 1.0f;
     float elapsed = 0.0f;
 };
+
+struct Bounds {
+    raylib::Vector2 min{-700.0f, -380.0f};
+    raylib::Vector2 max{700.0f, 380.0f};
+};
+
+struct Lifetime {
+    float remaining = 0.0f;
+};

@@ -133,6 +133,7 @@ add_executable(raylib_boilerplate
     src/input/InputManager.hpp
     src/physics/MovementSystem.hpp
     src/scenes/MenuScene.hpp
+    src/scenes/SplashScene.hpp
     src/scenes/SandboxScene.hpp
     src/systems/RenderSystem.hpp
     src/ui/DebugOverlay.hpp

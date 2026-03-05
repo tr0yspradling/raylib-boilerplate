@@ -1,8 +1,7 @@
 #pragma once
 
-#include <string_view>
-
 #include <raylib-cpp.hpp>
+#include <string_view>
 
 #include "../input/InputManager.hpp"
 
@@ -23,5 +22,6 @@ public:
 
     virtual void Update(SceneContext&, float dt) = 0;
     virtual void Draw(SceneContext&) = 0;
+    [[nodiscard]] virtual bool AllowsPause() const { return true; }
     virtual std::string_view Name() const = 0;
 };
