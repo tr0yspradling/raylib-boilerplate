@@ -81,6 +81,7 @@ Client 2:
 ./build/debug/game_client --host 127.0.0.1 --port 27020 --name bob
 ```
 After launch, use the main menu:
+- Select `Start Server` to launch a sibling local dedicated server and auto-join localhost.
 - Select `Join Server` to open the join form.
 - Edit host/port/name as needed, then select `Connect`.
 
@@ -106,7 +107,7 @@ Direct auto-join (dev shortcut):
 - Menu back: `Esc` (gamepad east face button)
 - Menu / join mouse support: hover and left-click
 - Join form editing: select `Host`/`Port`/`Name`, type text, `Backspace` to erase, `Enter`/`Esc` to stop editing
-- While connecting: `Esc` cancels and returns to menu
+- While starting local dedicated or connecting: `Esc` cancels and returns to menu
 - Return from placeholder/disconnected screens: `Enter` or `Esc`
 
 ## Smoke Test Checklist
@@ -118,6 +119,12 @@ Direct auto-join (dev shortcut):
 6. Confirm overlay shows ping/queue/throughput values.
 7. Confirm overlay chunk counters update (loaded chunks, version conflicts).
 8. Close one client and confirm despawn/disconnect behavior on the other.
+
+If you are validating the local dedicated `Start Server` flow specifically, also confirm:
+1. From the main menu, select `Start Server`.
+2. Client transitions through `StartingServer -> Connecting -> GameplayMultiplayer`.
+3. Press `Esc` during startup and confirm the launched dedicated server stops and the client returns to menu.
+4. Trigger a launch failure or timeout and confirm the menu shows actionable status text.
 
 If you are validating the Phase 4 flecs foundation specifically, also confirm:
 1. `game_server` starts and accepts connections with no runtime regressions.

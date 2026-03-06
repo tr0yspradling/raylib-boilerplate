@@ -58,6 +58,13 @@ add_executable(test_sim_client_args sim/client_args.cpp)
 target_include_directories(test_sim_client_args PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_client_args PRIVATE shared_game argparse::argparse)
 
+add_executable(test_sim_server_launcher_process
+    sim/server_launcher_process.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/core/server_launcher_process.cpp
+)
+target_include_directories(test_sim_server_launcher_process PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_server_launcher_process PRIVATE shared_game)
+
 add_test(NAME test_net_serializer_roundtrip COMMAND test_net_serializer_roundtrip)
 add_test(NAME test_net_send_policy COMMAND test_net_send_policy)
 add_test(NAME test_sim_fixed_step COMMAND test_sim_fixed_step)
@@ -73,3 +80,4 @@ add_test(NAME test_sim_status_presenter COMMAND test_sim_status_presenter)
 add_test(NAME test_sim_client_pipeline COMMAND test_sim_client_pipeline)
 add_test(NAME test_sim_server_pipeline COMMAND test_sim_server_pipeline)
 add_test(NAME test_sim_client_args COMMAND test_sim_client_args)
+add_test(NAME test_sim_server_launcher_process COMMAND test_sim_server_launcher_process)

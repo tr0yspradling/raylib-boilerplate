@@ -16,7 +16,7 @@ simulation stays plain deterministic C++ under `src/shared/game/`.
 - `W/S` or arrow keys – menu navigation.
 - `Enter` / `Space` – menu select.
 - Left mouse – menu/join hover + click.
-- `Esc` – menu back / cancel join.
+- `Esc` – menu back / cancel join / cancel local server startup.
 - `Esc` – return from placeholder/disconnected screens.
 - `A/D` or arrows – move (multiplayer gameplay).
 - `Space` – jump (multiplayer gameplay).
@@ -68,6 +68,7 @@ Single-config:
 ```
 
 By default the client boots into splash/menu and waits for a user menu selection before joining a server.
+Use `Start Server` in the main menu to launch a sibling local dedicated server and auto-join localhost.
 For direct dev join flow:
 
 ```bash
@@ -146,4 +147,5 @@ cmake -S . -B build `
 - `src/client/runtime/` and `src/server/runtime/` currently hold the transitional heavyweight runtime logic.
 - `src/client/ui/` now contains flecs-managed menu/join UI resources, a `UiDocument`, and a dedicated UI renderer.
 - `src/client/render/` now contains dedicated background, splash, status, and gameplay render helpers.
-- State/orchestration decomposition is still in progress; the real placeholder flows are not implemented yet.
+- `src/client/core/server_launcher.*` now owns the process-based local dedicated launcher used by `Start Server`.
+- State/orchestration decomposition is still in progress; `Singleplayer` and `Options` remain placeholder flows.

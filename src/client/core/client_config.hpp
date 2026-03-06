@@ -6,6 +6,7 @@
 namespace client {
 
 struct ClientConfig {
+    std::string executablePath;
     std::string serverHost = "127.0.0.1";
     uint16_t serverPort = 27020;
     std::string playerName = "player";

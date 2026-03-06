@@ -26,8 +26,8 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 2A is complete:
   - startup defaults to splash -> main menu (no eager connect)
   - interactive menu navigation/action dispatch is wired
-  - `Join Server` and `Quit` are fully wired
-  - `Start Server` / `Singleplayer` / `Options` currently route to placeholders
+  - `Join Server`, `Start Server`, and `Quit` are fully wired
+  - `Singleplayer` / `Options` still route to placeholders
 - Phase 3 join-form slice is complete:
   - menu `Join Server` opens editable host/port/name form state
   - `JoinServer` (form) and `Connecting` (active network attempt) are now distinct runtime scenes
@@ -46,6 +46,9 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - splash, centered status, gameplay world, and background rendering now live in dedicated render helpers
   - non-UI status screens use explicit presentation state built during `PresentationBuild`
   - `RenderSystem` now routes between specialized renderers instead of owning those draw implementations
+- Phase 5 local dedicated launcher slice is complete:
+  - `Start Server` now launches a sibling `game_server` process through `core::IServerLauncher`
+  - client startup retries localhost connect until the dedicated server is ready, times out cleanly, and supports cancel cleanup
 
 ## Target Runtime Shape
 
@@ -93,7 +96,7 @@ Goal: present interactive menu options in client runtime.
   - `Join Server` and `Quit` are fully wired
   - `Start Server` / `Singleplayer` / `Options` route to placeholders
 - Remaining for full Phase 2:
-  - replace placeholder routes with real flows (Phase 2B+ / Phase 3+)
+  - replace the remaining placeholder routes with real flows (`Singleplayer`, `Options`)
 
 ### Changes
 - Add menu rendering + keyboard/gamepad navigation:
@@ -158,7 +161,7 @@ Goal: make flecs the active runtime architecture for both client and server befo
 - Remaining Phase 4 work:
   - move more runtime/session state into explicit flecs resources/components
   - continue removing the transitional `RuntimeState + SceneManager` layer
-  - implement the real `Start Server`, `Singleplayer`, and `Options` flows on top of the new UI/presentation structure
+  - implement the remaining real `Singleplayer` and `Options` flows on top of the new UI/presentation structure
 
 ### Changes
 - Introduce `ClientApp` / `ServerApp` composition roots backed by `flecs::world`.
@@ -173,6 +176,16 @@ Goal: make flecs the active runtime architecture for both client and server befo
 
 ## Phase 5: Start Server (Local Dedicated) Flow
 Goal: menu option starts local dedicated server for quick local play.
+
+### Current Status (2026-03-06)
+- Completed for the initial slice.
+- Delivered behavior:
+  - process-based sibling `game_server` launch
+  - localhost auto-join retry/readiness gating
+  - cancel/failure return path into the current UI/runtime model
+- Follow-up still open:
+  - move local-server ownership/retry state out of transitional `ClientRuntime`
+  - broaden manual GUI coverage for the `Start Server` menu path
 
 ### Changes
 - Add local server launcher abstraction:

@@ -217,6 +217,9 @@ if(BUILD_GAME_CLIENT)
         src/client/modules/client_runtime_module.hpp
         src/client/core/menu_model.hpp
         src/client/core/runtime_state.hpp
+        src/client/core/server_launcher.hpp
+        src/client/core/server_launcher_process.hpp
+        src/client/core/server_launcher_process.cpp
         src/client/core/scene.hpp
         src/client/core/scene_manager.hpp
         src/client/input/input_manager.hpp

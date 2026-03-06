@@ -20,7 +20,7 @@ src/
 │   ├── app/            # ClientApp flecs composition root
 │   ├── modules/        # Client runtime phases and module registration
 │   ├── runtime/        # Transitional heavyweight client runtime logic
-│   ├── core/           # Transitional runtime state + menu state
+│   ├── core/           # Transitional runtime state, menu state, local server launcher
 │   ├── components/     # Client presentation/debug state
 │   ├── input/          # Input capture helpers
 │   ├── physics/        # Prediction/reconciliation helpers
@@ -53,6 +53,9 @@ src/
    through a built `UiDocument`.
 7. Splash, centered status, and gameplay world drawing now live in dedicated
    render helpers with a thin render router above them.
+8. `Start Server` now launches a sibling dedicated server process through the
+   current `server_launcher` abstraction and retries localhost connect until
+   the server is ready.
 
 ## Current Client Phase Order
 
@@ -80,9 +83,12 @@ src/
 ## Immediate Follow-Up Work
 
 - Replace the current menu model with a UI document/widget layer that supports
-  mouse hover/click alongside keyboard/gamepad navigation.
+  full state decomposition into flecs resources/components rather than the
+  remaining transitional runtime ownership.
 - Move more client runtime/session state into explicit flecs resources/components
   instead of relying on transitional scene-switch mapping.
+- Replace the remaining placeholder runtime flows (`Singleplayer`, `Options`)
+  with real implementations on top of the current UI/document path.
 - Continue removing the remaining transitional routing from the thin render
   coordinator once more presentation state is explicit.
 - Decompose the server runtime into narrower session/router/replication-style

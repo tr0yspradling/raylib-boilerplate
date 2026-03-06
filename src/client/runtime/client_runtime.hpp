@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -17,6 +18,7 @@
 #include "client/core/menu_model.hpp"
 #include "client/core/runtime_state.hpp"
 #include "client/core/scene_manager.hpp"
+#include "client/core/server_launcher.hpp"
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
 #include "client/systems/render_system.hpp"
@@ -72,14 +74,19 @@ private:
     void HandleIncomingPackets();
     void ConsumeUiCommands(flecs::world world);
     void HandlePlaceholderScreenInput(flecs::world world);
+    void UpdateLocalServerStartup(flecs::world world, std::chrono::steady_clock::time_point now);
     void HandleUiPointerFocus(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void HandleMenuInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void HandleJoinFormInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void ApplyJoinFormTextInput(ui::JoinServerScreenState& joinScreenState, const ui::UiInputState& inputState) const;
     void ActivateMenuAction(flecs::world world, core::MenuAction action);
     bool BeginJoinServer(flecs::world world);
+    [[nodiscard]] bool EnsureTransportInitialized(std::string& error);
+    [[nodiscard]] bool BeginConnectionAttempt(std::string& error);
     bool ApplyJoinFormToConfig(const ui::JoinServerScreenState& joinScreenState);
-    void ReturnToMenu(flecs::world world);
+    void ReturnToMenu(flecs::world world, std::string statusMessage = {});
+    void FailLocalServerStartup(flecs::world world, const std::string& message);
+    void StopOwnedLocalServer();
     void PublishScreenState(flecs::world world);
     [[nodiscard]] ui::UiDocument BuildMenuDocument(const ui::ScreenState& screenState,
                                                    const ui::MenuScreenState& menuScreenState,
@@ -129,6 +136,11 @@ private:
     bool debugOverlayEnabled_ = true;
     bool exitRequested_ = false;
     std::chrono::steady_clock::time_point splashStartedAt_{};
+    std::unique_ptr<core::IServerLauncher> serverLauncher_;
+    bool ownsLocalServerProcess_ = false;
+    bool localServerStartupInProgress_ = false;
+    std::chrono::steady_clock::time_point localServerLaunchStartedAt_{};
+    std::chrono::steady_clock::time_point lastLocalServerConnectAttemptAt_{};
 
     game::FixedStep fixedStep_;
     core::SceneManager sceneManager_{};

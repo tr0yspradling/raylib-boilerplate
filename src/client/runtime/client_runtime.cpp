@@ -4,12 +4,14 @@
 #include <charconv>
 #include <chrono>
 #include <cstdio>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
 
+#include "client/core/server_launcher_process.hpp"
 #include "client/scenes/menu_scene.hpp"
 #include "client/render/status_presenter.hpp"
 #include "client/scenes/sandbox_scene.hpp"
@@ -30,6 +32,8 @@ constexpr float kRowHeight = 44.0f;
 constexpr float kRowSpacing = 56.0f;
 constexpr float kMenuStartY = 254.0f;
 constexpr float kJoinStartY = 244.0f;
+constexpr std::chrono::milliseconds kLocalServerConnectRetryInterval{250};
+constexpr std::chrono::seconds kLocalServerStartupTimeout{10};
 
 [[nodiscard]] std::string ComposeSceneLabel(core::SceneKind sceneKind, std::string_view statusMessage) {
     switch (sceneKind) {
@@ -82,7 +86,9 @@ constexpr float kJoinStartY = 244.0f;
 namespace runtime {
 
 ClientRuntime::ClientRuntime(ClientConfig config)
-    : config_(std::move(config)), fixedStep_(1.0 / static_cast<double>(std::max(1, config_.simulationTickHz))) {
+    : config_(std::move(config)),
+      serverLauncher_(std::make_unique<core::ServerLauncherProcess>()),
+      fixedStep_(1.0 / static_cast<double>(std::max(1, config_.simulationTickHz))) {
     serverTickRateHz_ = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
 }
 
@@ -97,6 +103,10 @@ bool ClientRuntime::Initialize(flecs::world world) {
     runtimeState_.joiningInProgress = false;
     runtimeStatusMessage_.clear();
     splashStartedAt_ = std::chrono::steady_clock::now();
+    localServerStartupInProgress_ = false;
+    ownsLocalServerProcess_ = false;
+    localServerLaunchStartedAt_ = {};
+    lastLocalServerConnectAttemptAt_ = {};
     sceneManager_.SwitchTo(runtimeState_.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
     ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
     joinScreenState.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
@@ -116,6 +126,7 @@ void ClientRuntime::Shutdown() {
     if (transport_.IsInitialized()) {
         transport_.Shutdown();
     }
+    StopOwnedLocalServer();
 }
 
 void ClientRuntime::CaptureInput(flecs::world world) {
@@ -141,6 +152,7 @@ void ClientRuntime::ProcessRuntimeIntent(flecs::world world) {
     RefreshRuntimeState();
     ConsumeUiCommands(world);
     HandlePlaceholderScreenInput(world);
+    UpdateLocalServerStartup(world, now);
     if (runtimeState_.mode == core::RuntimeMode::Menu && runtimeState_.requestedJoin) {
         runtimeState_.requestedJoin = false;
         BeginJoinServer(world);
@@ -289,10 +301,24 @@ void ClientRuntime::HandlePlaceholderScreenInput(flecs::world world) {
                 transport_.Close(serverConnection_, 0, "join canceled", false);
             }
             ResetSessionState();
-            ReturnToMenu(world);
+            if (localServerStartupInProgress_) {
+                localServerStartupInProgress_ = false;
+                runtimeState_.requestedLocalServerStart = false;
+                StopOwnedLocalServer();
+                ReturnToMenu(world, "Local dedicated startup canceled");
+            } else {
+                ReturnToMenu(world);
+            }
         }
         return;
     case core::RuntimeMode::StartingLocalServer:
+        if (inputManager_.MenuBackPressed()) {
+            localServerStartupInProgress_ = false;
+            runtimeState_.requestedLocalServerStart = false;
+            StopOwnedLocalServer();
+            ReturnToMenu(world, "Local dedicated startup canceled");
+        }
+        return;
     case core::RuntimeMode::Singleplayer:
     case core::RuntimeMode::Options:
     case core::RuntimeMode::Disconnected:
@@ -301,6 +327,86 @@ void ClientRuntime::HandlePlaceholderScreenInput(flecs::world world) {
         }
         return;
     }
+}
+
+void ClientRuntime::UpdateLocalServerStartup(flecs::world world, std::chrono::steady_clock::time_point now) {
+    if (runtimeState_.mode != core::RuntimeMode::StartingLocalServer && !localServerStartupInProgress_) {
+        return;
+    }
+
+    if (ownsLocalServerProcess_ && serverLauncher_) {
+        const core::ServerProcessStatus status = serverLauncher_->PollStatus();
+        if (status.state == core::ServerProcessState::Exited) {
+            std::string message = "Local dedicated server exited before accepting connections";
+            if (status.exitCode.has_value()) {
+                message += " (exit " + std::to_string(*status.exitCode) + ")";
+            }
+            FailLocalServerStartup(world, message);
+            return;
+        }
+    }
+
+    if (runtimeState_.requestedLocalServerStart) {
+        if (!ownsLocalServerProcess_) {
+            std::string launchError;
+            if (!serverLauncher_ ||
+                !serverLauncher_->Launch(
+                    {.clientExecutablePath = config_.executablePath,
+                     .serverPort = config_.serverPort,
+                     .simulationTickHz = static_cast<int>(serverTickRateHz_),
+                     .snapshotRateHz = static_cast<int>(serverSnapshotRateHz_)},
+                    launchError)) {
+                FailLocalServerStartup(world, "Failed to launch local dedicated server: " + launchError);
+                return;
+            }
+            ownsLocalServerProcess_ = true;
+        }
+
+        runtimeState_.requestedLocalServerStart = false;
+        localServerStartupInProgress_ = true;
+        localServerLaunchStartedAt_ = now;
+        lastLocalServerConnectAttemptAt_ = now - kLocalServerConnectRetryInterval;
+        runtimeStatusMessage_ = "Launching local dedicated server...";
+    }
+
+    if (!localServerStartupInProgress_) {
+        return;
+    }
+
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - localServerLaunchStartedAt_) >=
+        kLocalServerStartupTimeout) {
+        FailLocalServerStartup(world, "Timed out waiting for local dedicated server startup");
+        return;
+    }
+
+    if (connecting_ || connected_) {
+        return;
+    }
+
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastLocalServerConnectAttemptAt_) <
+        kLocalServerConnectRetryInterval) {
+        return;
+    }
+
+    lastLocalServerConnectAttemptAt_ = now;
+
+    std::string error;
+    if (!EnsureTransportInitialized(error)) {
+        FailLocalServerStartup(world, "Transport init failed: " + error);
+        return;
+    }
+
+    if (!BeginConnectionAttempt(error)) {
+        runtimeState_.mode = core::RuntimeMode::StartingLocalServer;
+        runtimeState_.joiningInProgress = false;
+        runtimeStatusMessage_ = "Waiting for local dedicated server...";
+        return;
+    }
+
+    runtimeState_.mode = core::RuntimeMode::JoiningServer;
+    runtimeState_.joiningInProgress = true;
+    connecting_ = true;
+    runtimeStatusMessage_ = "Connecting to local dedicated server...";
 }
 
 void ClientRuntime::ConsumeUiCommands(flecs::world world) {
@@ -573,8 +679,15 @@ void ClientRuntime::ActivateMenuAction(flecs::world world, core::MenuAction acti
         exitRequested_ = true;
         return;
     case core::MenuAction::StartServer:
+        runtimeState_.requestedJoin = false;
+        runtimeState_.requestedLocalServerStart = true;
+        runtimeState_.joiningInProgress = false;
         runtimeState_.mode = core::RuntimeMode::StartingLocalServer;
-        runtimeStatusMessage_ = "Dedicated local server launch is planned for the next slice";
+        disconnectReason_.clear();
+        runtimeState_.disconnectReason.clear();
+        runtimeStatusMessage_ = "Launching local dedicated server...";
+        world.get_mut<ui::JoinServerScreenState>().editing = false;
+        world.get_mut<ui::UiInteractionState>().focusedWidget.reset();
         return;
     case core::MenuAction::Singleplayer:
         runtimeState_.mode = core::RuntimeMode::Singleplayer;
@@ -601,19 +714,14 @@ bool ClientRuntime::BeginJoinServer(flecs::world world) {
     disconnectReason_.clear();
     runtimeState_.disconnectReason.clear();
 
-    if (!transport_.IsInitialized()) {
-        std::string error;
-        if (!transport_.Initialize(net::TransportConfig{.isServer = false, .debugVerbosity = 4, .allowUnencryptedDev = true},
-                                   error)) {
-            runtimeStatusMessage_ = "Transport init failed: " + error;
-            std::fprintf(stderr, "[net.transport] client transport init failed: %s\n", error.c_str());
-            return false;
-        }
+    std::string error;
+    if (!EnsureTransportInitialized(error)) {
+        runtimeStatusMessage_ = "Transport init failed: " + error;
+        std::fprintf(stderr, "[net.transport] client transport init failed: %s\n", error.c_str());
+        return false;
     }
 
-    std::string error;
-    serverConnection_ = transport_.Connect(config_.serverHost, config_.serverPort, error);
-    if (serverConnection_ == net::kInvalidConnectionHandle) {
+    if (!BeginConnectionAttempt(error)) {
         runtimeStatusMessage_ = "Connect failed: " + error;
         std::fprintf(stderr, "[net.transport] connect failed: %s\n", error.c_str());
         return false;
@@ -625,15 +733,53 @@ bool ClientRuntime::BeginJoinServer(flecs::world world) {
     return true;
 }
 
-void ClientRuntime::ReturnToMenu(flecs::world world) {
+bool ClientRuntime::EnsureTransportInitialized(std::string& error) {
+    if (transport_.IsInitialized()) {
+        error.clear();
+        return true;
+    }
+
+    if (!transport_.Initialize(net::TransportConfig{.isServer = false, .debugVerbosity = 4, .allowUnencryptedDev = true},
+                               error)) {
+        return false;
+    }
+
+    error.clear();
+    return true;
+}
+
+bool ClientRuntime::BeginConnectionAttempt(std::string& error) {
+    serverConnection_ = transport_.Connect(config_.serverHost, config_.serverPort, error);
+    return serverConnection_ != net::kInvalidConnectionHandle;
+}
+
+void ClientRuntime::ReturnToMenu(flecs::world world, std::string statusMessage) {
     disconnectReason_.clear();
     runtimeState_.disconnectReason.clear();
-    runtimeStatusMessage_.clear();
+    runtimeStatusMessage_ = std::move(statusMessage);
     runtimeState_.requestedJoin = false;
+    runtimeState_.requestedLocalServerStart = false;
     runtimeState_.joiningInProgress = false;
     world.get_mut<ui::JoinServerScreenState>().editing = false;
     runtimeState_.mode = core::RuntimeMode::Menu;
     world.get_mut<ui::UiInteractionState>().focusedWidget = ui::UiWidgetId::MenuStartServer;
+}
+
+void ClientRuntime::FailLocalServerStartup(flecs::world world, const std::string& message) {
+    ResetSessionState();
+    localServerStartupInProgress_ = false;
+    runtimeState_.requestedLocalServerStart = false;
+    StopOwnedLocalServer();
+    ReturnToMenu(world, message);
+}
+
+void ClientRuntime::StopOwnedLocalServer() {
+    if (!ownsLocalServerProcess_ || !serverLauncher_) {
+        return;
+    }
+
+    serverLauncher_->Stop();
+    ownsLocalServerProcess_ = false;
 }
 
 void ClientRuntime::HandleConnectionEvents() {
@@ -646,7 +792,9 @@ void ClientRuntime::HandleConnectionEvents() {
         if (event.type == net::ConnectionEventType::Connected) {
             connected_ = true;
             connecting_ = false;
-            runtimeStatusMessage_ = "Connected, waiting for server welcome...";
+            runtimeStatusMessage_ = localServerStartupInProgress_
+                ? "Connected to local dedicated server, waiting for server welcome..."
+                : "Connected, waiting for server welcome...";
             OnConnectedToServer();
             continue;
         }
@@ -656,6 +804,15 @@ void ClientRuntime::HandleConnectionEvents() {
             connected_ = false;
             disconnectReason_ = event.reason.empty() ? "connection closed" : event.reason;
             ResetSessionState();
+
+            if (localServerStartupInProgress_) {
+                disconnectReason_.clear();
+                runtimeState_.disconnectReason.clear();
+                runtimeState_.mode = core::RuntimeMode::StartingLocalServer;
+                runtimeState_.joiningInProgress = false;
+                runtimeStatusMessage_ = "Waiting for local dedicated server...";
+                continue;
+            }
 
             if (runtimeState_.mode == core::RuntimeMode::JoiningServer) {
                 runtimeStatusMessage_ = "Join failed: " + disconnectReason_;
@@ -1012,6 +1169,8 @@ void ClientRuntime::RefreshRuntimeState() {
     case core::RuntimeMode::JoiningServer:
         runtimeState_.joiningInProgress = connecting_ || (connected_ && !serverWelcomed_);
         if (connected_ && serverWelcomed_) {
+            localServerStartupInProgress_ = false;
+            runtimeState_.requestedLocalServerStart = false;
             runtimeStatusMessage_.clear();
             runtimeState_.joiningInProgress = false;
             runtimeState_.mode = core::RuntimeMode::Multiplayer;

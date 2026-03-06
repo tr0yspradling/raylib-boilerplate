@@ -1,6 +1,7 @@
 #include "client/client_entry.hpp"
 
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -29,6 +30,9 @@ int RunClientEntry(int argc, char** argv) {
         }
 
         ClientConfig config = std::move(parsed.config);
+        const std::filesystem::path executablePath =
+            std::filesystem::absolute(std::filesystem::path{programName}).lexically_normal();
+        config.executablePath = executablePath.string();
         GameClient client{std::move(config)};
         if (!client.Initialize()) {
             return 1;
