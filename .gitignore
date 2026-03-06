@@ -50,6 +50,5 @@ CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
 
-# Local asset imports (keep folder placeholder only)
-assets/*
-!assets/.gitkeep
+# Optional local-only asset imports
+assets/local/
