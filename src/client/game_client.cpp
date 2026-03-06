@@ -24,10 +24,20 @@ namespace {
     switch (sceneKind) {
     case core::SceneKind::Splash:
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::SplashCaption()};
+    case core::SceneKind::MainMenu:
+        return std::string{core::SceneName(sceneKind)} + " - Select mode";
+    case core::SceneKind::JoinServer:
+        return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::ConnectingCaption()};
+    case core::SceneKind::StartingServer:
+        return std::string{core::SceneName(sceneKind)} + " - Booting local dedicated";
     case core::SceneKind::Connecting:
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::ConnectingCaption()};
-    case core::SceneKind::Gameplay:
+    case core::SceneKind::GameplayMultiplayer:
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::GameplayCaption()};
+    case core::SceneKind::GameplaySingleplayer:
+        return std::string{core::SceneName(sceneKind)} + " - Local sandbox";
+    case core::SceneKind::Options:
+        return std::string{core::SceneName(sceneKind)} + " - Settings";
     case core::SceneKind::Disconnected:
         return std::string{core::SceneName(sceneKind)};
     }
@@ -46,6 +56,9 @@ bool GameClient::Initialize() {
     window_.emplace(config_.windowWidth, config_.windowHeight, "raylib boilerplate - multiplayer client");
     window_->SetTargetFPS(config_.targetFps);
 
+    runtimeState_.mode = core::RuntimeMode::Boot;
+    runtimeState_.splashCompleted = false;
+    runtimeState_.disconnectReason.clear();
     sceneManager_.SwitchTo(core::SceneKind::Splash);
 
     std::string error;
@@ -62,7 +75,9 @@ bool GameClient::Initialize() {
     }
 
     connecting_ = true;
-    sceneManager_.SwitchTo(core::SceneKind::Connecting);
+    runtimeState_.requestedJoin = true;
+    runtimeState_.mode = core::RuntimeMode::JoiningServer;
+    sceneManager_.SwitchTo(core::SceneKind::JoinServer);
     return true;
 }
 
@@ -93,7 +108,8 @@ int GameClient::Run() {
             StepSimulation();
         }
 
-        core::Application::UpdateScene(sceneManager_, connecting_, connected_, serverWelcomed_, disconnectReason_);
+        RefreshRuntimeState();
+        core::Application::UpdateScene(sceneManager_, runtimeState_);
 
         const auto sinceLastPing = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPingSentAt_);
         if (connected_ && sinceLastPing.count() >= 1000) {
@@ -460,6 +476,30 @@ void GameClient::ResetSessionState() {
     latestServerTick_ = 0;
     renderInterpolationTick_ = 0.0f;
     nextInputSequence_ = 1;
+}
+
+void GameClient::RefreshRuntimeState() {
+    runtimeState_.disconnectReason = disconnectReason_;
+
+    if (!disconnectReason_.empty() || (!connected_ && !connecting_)) {
+        runtimeState_.mode = core::RuntimeMode::Disconnected;
+        return;
+    }
+
+    runtimeState_.disconnectReason.clear();
+    runtimeState_.splashCompleted = true;
+
+    if (connecting_ || (connected_ && !serverWelcomed_)) {
+        runtimeState_.mode = core::RuntimeMode::JoiningServer;
+        return;
+    }
+
+    if (connected_ && serverWelcomed_) {
+        runtimeState_.mode = core::RuntimeMode::Multiplayer;
+        return;
+    }
+
+    runtimeState_.mode = core::RuntimeMode::Menu;
 }
 
 void GameClient::StepSimulation() {

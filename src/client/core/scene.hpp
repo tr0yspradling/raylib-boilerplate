@@ -6,8 +6,13 @@ namespace client::core {
 
 enum class SceneKind {
     Splash,
+    MainMenu,
+    JoinServer,
+    StartingServer,
     Connecting,
-    Gameplay,
+    GameplayMultiplayer,
+    GameplaySingleplayer,
+    Options,
     Disconnected,
 };
 
@@ -15,10 +20,20 @@ enum class SceneKind {
     switch (kind) {
     case SceneKind::Splash:
         return "Splash";
+    case SceneKind::MainMenu:
+        return "Main Menu";
+    case SceneKind::JoinServer:
+        return "Join Server";
+    case SceneKind::StartingServer:
+        return "Starting Server";
     case SceneKind::Connecting:
         return "Connecting";
-    case SceneKind::Gameplay:
-        return "Gameplay";
+    case SceneKind::GameplayMultiplayer:
+        return "Gameplay (Multiplayer)";
+    case SceneKind::GameplaySingleplayer:
+        return "Gameplay (Singleplayer)";
+    case SceneKind::Options:
+        return "Options";
     case SceneKind::Disconnected:
         return "Disconnected";
     }

@@ -160,6 +160,8 @@ if(BUILD_GAME_CLIENT)
         src/client/components/components.hpp
         src/client/core/application.hpp
         src/client/core/config.hpp
+        src/client/core/menu_model.hpp
+        src/client/core/runtime_state.hpp
         src/client/core/scene.hpp
         src/client/core/scene_manager.hpp
         src/client/input/input_manager.hpp

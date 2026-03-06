@@ -1,5 +1,7 @@
 # Runtime Reshape Plan
 
+Phase 1 execution breakdown: `docs/runtime-phase1-plan.md`.
+
 ## Objective
 Reshape the client runtime flow from the current network-first bootstrap into a game-first flow:
 

@@ -12,6 +12,8 @@
 
 #include "client/components/components.hpp"
 #include "client/core/application.hpp"
+#include "client/core/menu_model.hpp"
+#include "client/core/runtime_state.hpp"
 #include "client/core/scene_manager.hpp"
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
@@ -77,6 +79,7 @@ private:
     void HandleResyncRequired(const net::ResyncRequiredMessage& message);
     void HandleDisconnectReason(const net::DisconnectReasonMessage& message);
     void ResetSessionState();
+    void RefreshRuntimeState();
 
     void StepSimulation();
     void SendInputFrame(const game::PlayerInputFrame& frame);
@@ -104,6 +107,8 @@ private:
 
     game::FixedStep fixedStep_;
     core::SceneManager sceneManager_{};
+    core::RuntimeState runtimeState_{};
+    core::MenuSelectionState menuSelectionState_{};
     input::InputManager inputManager_{};
     game::TickId clientTick_ = 0;
     game::TickId latestServerTick_ = 0;
