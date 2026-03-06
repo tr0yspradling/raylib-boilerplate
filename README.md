@@ -1,20 +1,21 @@
 # raylib boilerplate
 
-A tiny scene-driven starter kit for raylib + raylib-cpp, flecs, ImGui, and rlImGui.  
-The old N-body project has been removed in favor of a reusable structure that makes it easy to
-swap scenes, wire up systems, and prototype gameplay.
+A dedicated-authoritative multiplayer prototype built on raylib-cpp, GameNetworkingSockets, and flecs.
+The active client and server runtimes now bootstrap through flecs composition roots while the shared
+simulation stays plain deterministic C++ under `src/shared/game/`.
 
 ## Highlights
 
-- **Scene manager:** register scenes once and switch with one line of code.
-- **raylib-cpp everywhere:** the window, camera, input, and drawing APIs all flow through the C++ wrappers.
-- **ECS-ready:** flecs powers the example sandbox scene with movement, spin, and render systems.
-- **UI hook:** rlImGui and ImGui are still configured so overlays can be added immediately.
+- **Authoritative multiplayer:** server owns gameplay truth; client predicts and reconciles.
+- **Flecs-first runtime shells:** `game_client` and `game_server` run through explicit flecs world phases.
+- **Shared deterministic sim:** gameplay rules remain raylib-free under `src/shared/game/`.
+- **Preset-backed workflow:** build, test, and runtime outputs live under `build/<preset>/`.
 
 ## Controls
 
 - `W/S` or arrow keys – menu navigation.
 - `Enter` / `Space` – menu select.
+- `Esc` – menu back / cancel join.
 - `Esc` – return from placeholder/disconnected screens.
 - `A/D` or arrows – move (multiplayer gameplay).
 - `Space` – jump (multiplayer gameplay).
@@ -65,7 +66,7 @@ Single-config:
 ./build/debug/game_client
 ```
 
-By default the client now boots into splash/menu and waits for a user menu selection before joining a server.
+By default the client boots into splash/menu and waits for a user menu selection before joining a server.
 For direct dev join flow:
 
 ```bash
@@ -79,6 +80,12 @@ Multi-config (Windows/MSVC):
 ```
 
 JetBrains/CLion: use preset-backed CMake profiles (`debug`, `release`) so profile outputs and target matrix data remain under `build/<profile>/`.
+
+Run a dedicated server:
+
+```bash
+./build/debug/game_server --port 27020 --tick-rate 30 --snapshot-rate 15
+```
 
 ## Dependencies
 
@@ -131,8 +138,9 @@ cmake -S . -B build `
   -DVCPKG_TARGET_TRIPLET=x64-windows
 ```
 
-## Next steps
+## Current Architecture Direction
 
-- Add more scenes (loading screen, gameplay, pause/menu, etc.).
-- Expand the ECS components/systems to fit your game's needs.
-- Hook ImGui panels into the debug overlay or create dedicated UI scenes.
+- `src/client/app/` and `src/server/app/` contain the flecs composition roots.
+- `src/client/modules/` and `src/server/modules/` define explicit runtime phase ordering.
+- `src/client/runtime/` and `src/server/runtime/` currently hold the transitional heavyweight runtime logic.
+- Menu/UI and rendering decomposition are still in progress; the current menu stack is functional but not the final design.

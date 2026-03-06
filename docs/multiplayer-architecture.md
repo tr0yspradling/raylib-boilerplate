@@ -6,13 +6,38 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 ## Build Targets
 - `shared_game` (header-only): deterministic sim types and rules under `src/shared/game/`
 - `shared_net` (static): protocol/serialization/transport abstraction + GNS impl under `src/shared/net/`
+- `client_runtime` (static): client app/runtime/module layer under `src/client/`
+- `server_runtime` (static): server app/runtime/module layer under `src/server/`
 - `game_server`: headless authoritative server under `src/server/`
 - `game_client`: raylib-cpp client under `src/client/`
 
-## Thread Model
-- Single-threaded networking + simulation loop on both client and server.
-- Server: `Poll transport -> process messages -> fixed-step sim -> snapshot broadcast`.
-- Client: `input -> poll transport -> fixed-step prediction -> render`.
+## Active Runtime Architecture
+- `game_client` boots through `client::app::ClientApp`, which owns a `flecs::world` and a `client::runtime::ClientRuntime`.
+- `game_server` boots through `server::app::ServerApp`, which owns a `flecs::world` and a `server::runtime::ServerRuntime`.
+- `GameClient` and `GameServer` now act as thin shells over those app roots.
+- Shared gameplay state under `src/shared/game/` remains plain deterministic C++ and is consumed by flecs-driven runtime systems rather than stored directly in ECS.
+
+## Runtime Phase Model
+- Client world pipeline:
+  - `InputCapture`
+  - `RuntimeIntent`
+  - `UiBuild`
+  - `UiInteraction`
+  - `TransportPoll`
+  - `SessionUpdate`
+  - `Prediction`
+  - `PresentationBuild`
+  - `Render`
+- Server world pipeline:
+  - `TransportPoll`
+  - `MessageDecode`
+  - `AuthAndSession`
+  - `InputApply`
+  - `Simulation`
+  - `Replication`
+  - `Persistence`
+  - `Metrics`
+- Current implementation keeps most business logic inside the runtime service classes while phase ordering and composition are handled by flecs. Deeper state decomposition into ECS resources/components is a planned follow-up.
 
 ## Authority Model
 - Server owns gameplay truth (`GameState` in `src/shared/game/game_state.hpp`).
@@ -75,15 +100,25 @@ Lane policy in `src/shared/net/lanes.hpp`:
 
 Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 
-## Re-Architecture of Original Folders
-Original folder set is now network-client oriented:
-- `src/client/components/`: render/debug view components for net client state
-- `src/client/core/`: client scene-phase state and runtime phase updates
-- `src/client/input/`: input capture producing shared input frames
-- `src/client/physics/`: prediction/reconciliation helpers on shared sim
-- `src/client/scenes/`: client scene caption/state metadata for overlay flow
-- `src/client/systems/`: frame renderer consuming authoritative/predicted/interpolated state
-- `src/client/ui/`: multiplayer debug overlay (scene/net/tick/metrics/disconnect)
+## Runtime Layout
+- `src/client/app/`: `ClientApp` composition root and frame loop.
+- `src/client/modules/`: client flecs phase declarations and runtime module registration.
+- `src/client/runtime/`: heavyweight client runtime behavior, still transitional while state is decomposed further.
+- `src/client/components/`: render/debug presentation state published into the client world.
+- `src/client/core/`: transitional runtime state, menu model, and scene mapping.
+- `src/client/input/`: input capture producing shared input frames.
+- `src/client/physics/`: prediction/reconciliation helpers on shared sim.
+- `src/client/scenes/`: scene captions and metadata still used by current presentation flow.
+- `src/client/systems/`: current renderer and related presentation helpers.
+- `src/client/ui/`: multiplayer debug overlay helpers.
+- `src/server/app/`: `ServerApp` composition root and process loop.
+- `src/server/modules/`: server flecs phase declarations and runtime module registration.
+- `src/server/runtime/`: heavyweight authoritative server runtime behavior, still transitional while services are decomposed further.
+- `src/server/config/`: config parsing and defaults.
+
+## Validation Coverage
+- Existing gameplay/network tests still cover serializer, send policy, fixed step, menu/join state, and runtime scene transitions.
+- New world-level tests verify flecs phase ordering for both client and server runtimes.
 
 ## Persistence and Security Status
 Implemented foundations:

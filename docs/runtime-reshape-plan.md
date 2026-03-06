@@ -32,6 +32,11 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - menu `Join Server` opens editable host/port/name form state
   - `JoinServer` (form) and `Connecting` (active network attempt) are now distinct runtime scenes
   - connect failures return to join UX for retry instead of forcing disconnected scene
+- Phase 4 flecs-foundation slice is complete:
+  - active client and server runtimes now boot through `flecs::world` composition roots
+  - `GameClient` / `GameServer` are now thin shells over dedicated app/runtime services
+  - shared deterministic sim remains non-ECS for this program
+  - explicit world-level tests validate client/server phase ordering
 
 ## Target Runtime Shape
 
@@ -125,7 +130,32 @@ Goal: user-driven connection flow from menu.
 - Joining transitions: `MainMenu -> JoinServer -> Connecting -> GameplayMultiplayer`.
 - Disconnect returns to menu with reason preserved.
 
-## Phase 4: Start Server (Local Dedicated) Flow
+## Phase 4: Flecs Runtime Foundation
+Goal: make flecs the active runtime architecture for both client and server before deeper feature work continues.
+
+### Current Status (2026-03-06)
+- Foundation slice completed:
+  - `ClientApp` / `ServerApp` composition roots are active
+  - client/server phase registration modules exist and are wired into the primary binaries
+  - heavyweight runtime logic moved into dedicated runtime service classes
+  - phase ordering tests were added for both worlds
+- Remaining Phase 4 work:
+  - move screen/runtime state into explicit flecs resources/components
+  - redesign menu/UI interaction around a document/widget model
+  - split the current render system into presentation-specific modules
+
+### Changes
+- Introduce `ClientApp` / `ServerApp` composition roots backed by `flecs::world`.
+- Add explicit client/server runtime phases and module registration.
+- Move heavy runtime logic into dedicated service classes while keeping current gameplay/network/menu behavior intact.
+- Update build wiring so flecs is an active dependency for the primary client/server targets.
+
+### Acceptance
+- Client and server both run through flecs worlds with explicit phase ordering.
+- Current runtime behavior remains intact through the new shells.
+- World-level tests validate client/server phase ordering.
+
+## Phase 5: Start Server (Local Dedicated) Flow
 Goal: menu option starts local dedicated server for quick local play.
 
 ### Changes
@@ -144,7 +174,7 @@ Goal: menu option starts local dedicated server for quick local play.
 ### Notes
 - In-process embedded server is intentionally not first pass; process-based isolation is safer and keeps dedicated threading boundaries clear.
 
-## Phase 5: Singleplayer Runtime (Authoritative Local Sim Path)
+## Phase 6: Singleplayer Runtime (Authoritative Local Sim Path)
 Goal: provide a no-network singleplayer mode while preserving authoritative logic principles.
 
 ### Changes
@@ -158,7 +188,7 @@ Goal: provide a no-network singleplayer mode while preserving authoritative logi
 - `MainMenu -> GameplaySingleplayer` works without server process.
 - Local save/load hook points defined (no fake persistence claims).
 
-## Phase 6: Options Screen and Config Persistence
+## Phase 7: Options Screen and Config Persistence
 Goal: expose runtime/network/video/gameplay options.
 
 ### Changes
@@ -178,7 +208,7 @@ Goal: expose runtime/network/video/gameplay options.
 - Updated settings apply at runtime where possible.
 - Persisted settings load on next launch.
 
-## Phase 7: Runtime Polish, Safety, and Testability
+## Phase 8: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.
 
 ### Changes

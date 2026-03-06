@@ -1,77 +1,100 @@
-# Boilerplate Architecture Notes
+# Runtime Architecture Notes
 
-The repository now ships as a lightweight template for future raylib projects.
-This document captures the moving pieces that replaced the original
-N-body project.
+This repository is no longer a generic scene-driven starter kit. It is an
+authoritative multiplayer prototype whose active client and server entrypoints
+now bootstrap through flecs worlds.
 
 ## High-Level Goals
 
-- Use **raylib-cpp** for all engine-level interactions (window, camera, input, drawing).
-- Keep **flecs** in the stack so entities/systems scale with the project.
-- Provide two tiny scenes (menu + sandbox) to demonstrate scene switching.
-- Leave ImGui/rlImGui configured so UI layers can be dropped in without
-  touching the build.
+- Keep the server authoritative and the shared simulation deterministic.
+- Use flecs as the active runtime composition layer for both client and server.
+- Keep rendering/input raylib-only on the client.
+- Continue decomposing menu/UI and rendering responsibilities out of the
+  current transitional runtime classes.
 
 ## Directory Guide
 
 ```
 src/
-├── components/         # Shared ECS components (Transform, Velocity, etc.)
-├── core/               # Application, config, scene contracts, scene manager
-├── input/              # InputManager snapshotting keyboard + mouse state
-├── physics/            # ECS systems that modify world data
-├── scenes/             # Concrete scenes (MenuScene, SandboxScene)
-├── systems/            # Rendering logic that reads ECS data
-└── ui/                 # Debug overlay + future UI helpers
+├── client/
+│   ├── app/            # ClientApp flecs composition root
+│   ├── modules/        # Client runtime phases and module registration
+│   ├── runtime/        # Transitional heavyweight client runtime logic
+│   ├── core/           # Transitional runtime state + menu state
+│   ├── components/     # Client presentation/debug state
+│   ├── input/          # Input capture helpers
+│   ├── physics/        # Prediction/reconciliation helpers
+│   ├── scenes/         # Transitional scene metadata/captions
+│   ├── systems/        # Current render path
+│   └── ui/             # Debug overlay helpers
+├── server/
+│   ├── app/            # ServerApp flecs composition root
+│   ├── modules/        # Server runtime phases and module registration
+│   ├── runtime/        # Transitional heavyweight server runtime logic
+│   └── config/         # Dedicated server config
+└── shared/
+    ├── game/           # Deterministic simulation, no raylib types
+    └── net/            # Protocol, serializer, transport abstraction, GNS
 ```
 
 ## Core Flow
 
-1. `Application` boots a `raylib::Window`, owns the `InputManager`, and
-   runs the main loop.
-2. `SceneManager` stores `Scene` instances and exposes `SwitchTo`.
-3. Each `Scene` gets a `SceneContext` containing references to the window,
-   input manager, and the scene manager itself (so scenes can request transitions).
-4. Scenes own any state they need—in the sandbox that means a `flecs::world`
-   plus a `raylib::Camera2D`.
-5. Systems (movement, render, overlay) are just header-only helpers that
-   operate on these worlds/cameras.
+1. `ClientApp` owns a `flecs::world`, registers client runtime phases, and
+   drives `world.progress(...)` each frame.
+2. `ServerApp` owns a `flecs::world`, registers server runtime phases, and
+   drives `world.progress(...)` in the dedicated server loop.
+3. Runtime modules invoke the current `ClientRuntime` / `ServerRuntime`
+   services in explicit phase order.
+4. Shared simulation and protocol logic remain plain C++ and are consumed by
+   those runtime services.
+5. The old `RuntimeState + SceneManager` model remains in place only as a
+   transitional client screen-state layer and should continue shrinking.
 
-## Adding a Scene
+## Current Client Phase Order
 
-1. Create `src/scenes/MyScene.hpp` and inherit from `Scene`.
-2. Override `OnEnter`, `Update`, `Draw`, and `Name`.
-3. Register the scene in `main.cpp`:
-   ```cpp
-   app.RegisterScene<MyScene>("my_scene");
-   ```
-4. Switch to it from anywhere via `context.manager.SwitchTo("my_scene")`.
+- `InputCapture`
+- `RuntimeIntent`
+- `UiBuild`
+- `UiInteraction`
+- `TransportPoll`
+- `SessionUpdate`
+- `Prediction`
+- `PresentationBuild`
+- `Render`
 
-## Extending ECS Data
+## Current Server Phase Order
 
-- Add new structs to `src/components/Components.hpp`.
-- Register systems in `physics::MovementSystem` or create new headers under
-  `src/physics/` or `src/systems/`.
-- Make sure scenes call your register functions during `OnEnter`.
+- `TransportPoll`
+- `MessageDecode`
+- `AuthAndSession`
+- `InputApply`
+- `Simulation`
+- `Replication`
+- `Persistence`
+- `Metrics`
 
-## Input Tips
+## Immediate Follow-Up Work
 
-- `InputManager` intentionally exposes only a handful of helpers. Extend it
-  when you need buffered states, rebinding, or action maps.
-- Raylib key/mouse enumerations are available via `raylib-cpp.hpp`.
-
-## UI / Debug Panels
-
-- `ui::DebugOverlay` draws the FPS + current scene. Hook ImGui panels here or
-  create scene-specific UI once rlImGui is initialized.
+- Replace the current menu model with a UI document/widget layer that supports
+  mouse hover/click alongside keyboard/gamepad navigation.
+- Move client screen/runtime state into explicit flecs resources/components
+  instead of relying on transitional scene-switch mapping.
+- Split the monolithic render path into separate world, UI, and debug
+  presentation modules.
+- Decompose the server runtime into narrower session/router/replication-style
+  services behind the flecs shell.
 
 ## Build + Run
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j
-./build/raylib_boilerplate
+cmake --preset debug
+cmake --build --preset debug -j
+ctest --preset debug
 ```
 
-The `external/` directory still expects initialized submodules for
-raylib, raylib-cpp, flecs, ImGui, and rlImGui.
+Run the active binaries from `build/debug/`:
+
+```bash
+./build/debug/game_server
+./build/debug/game_client
+```

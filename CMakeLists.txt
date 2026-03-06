@@ -23,14 +23,16 @@ function(apply_project_warnings target_name)
     endif()
 endfunction()
 
-set(ARGPARSE_INCLUDE_DIR ${EXTERNAL_DIR}/argparse/include)
-if(NOT EXISTS ${ARGPARSE_INCLUDE_DIR}/argparse/argparse.hpp)
-    message(FATAL_ERROR "argparse not found. Provide external/argparse.")
-endif()
+if(BUILD_GAME_CLIENT OR BUILD_TESTING)
+    set(ARGPARSE_INCLUDE_DIR ${EXTERNAL_DIR}/argparse/include)
+    if(NOT EXISTS ${ARGPARSE_INCLUDE_DIR}/argparse/argparse.hpp)
+        message(FATAL_ERROR "argparse not found. Provide external/argparse.")
+    endif()
 
-add_library(argparse_vendor INTERFACE)
-target_include_directories(argparse_vendor INTERFACE ${ARGPARSE_INCLUDE_DIR})
-add_library(argparse::argparse ALIAS argparse_vendor)
+    add_library(argparse_vendor INTERFACE)
+    target_include_directories(argparse_vendor INTERFACE ${ARGPARSE_INCLUDE_DIR})
+    add_library(argparse::argparse ALIAS argparse_vendor)
+endif()
 
 set(NEEDS_RAYLIB OFF)
 if(BUILD_GAME_CLIENT OR BUILD_LEGACY_SCENE_APP)
@@ -71,6 +73,33 @@ if(NEEDS_RAYLIB)
     target_link_libraries(raylib_cpp INTERFACE ${RAYLIB_TARGET})
 endif()
 
+set(NEEDS_FLECS OFF)
+if(BUILD_GAME_CLIENT OR BUILD_GAME_SERVER OR BUILD_LEGACY_SCENE_APP OR BUILD_TESTING)
+    set(NEEDS_FLECS ON)
+endif()
+
+if(NEEDS_FLECS)
+    set(FLECS_DIR ${EXTERNAL_DIR}/flecs)
+    if(EXISTS ${FLECS_DIR}/CMakeLists.txt)
+        set(FLECS_SHARED OFF CACHE BOOL "" FORCE)
+        set(FLECS_STATIC ON CACHE BOOL "" FORCE)
+        add_subdirectory(${FLECS_DIR} EXCLUDE_FROM_ALL)
+    else()
+        find_package(flecs CONFIG REQUIRED)
+    endif()
+
+    set(FLECS_LIB flecs_static)
+    if(TARGET flecs::flecs_static)
+        set(FLECS_LIB flecs::flecs_static)
+    elseif(TARGET flecs_static)
+        set(FLECS_LIB flecs_static)
+    elseif(TARGET flecs::flecs)
+        set(FLECS_LIB flecs::flecs)
+    elseif(TARGET flecs)
+        set(FLECS_LIB flecs)
+    endif()
+endif()
+
 set(GNS_TARGET)
 if(BUILD_GAME_CLIENT OR BUILD_GAME_SERVER)
     if(USE_VENDORED_DEPS AND EXISTS ${EXTERNAL_DIR}/GameNetworkingSockets/CMakeLists.txt)
@@ -94,6 +123,35 @@ if(BUILD_GAME_CLIENT OR BUILD_GAME_SERVER)
         set(GNS_TARGET GameNetworkingSockets_s)
     else()
         message(FATAL_ERROR "Could not find a usable static GameNetworkingSockets target.")
+    endif()
+
+    # CMake's FindProtobuf module does not consistently propagate protobuf's
+    # transitive runtime deps (abseil/utf8_range in modern releases). Add
+    # optional fallback links when building vendored GNS in-tree.
+    if(USE_VENDORED_DEPS AND TARGET GameNetworkingSockets_s)
+        find_package(absl CONFIG QUIET)
+        find_package(utf8_range CONFIG QUIET)
+
+        set(_protobuf_fallback_link_targets)
+        if(TARGET absl::absl_check AND TARGET absl::absl_log)
+            list(APPEND _protobuf_fallback_link_targets absl::absl_check absl::absl_log)
+        elseif(TARGET absl::check AND TARGET absl::log)
+            list(APPEND _protobuf_fallback_link_targets absl::check absl::log)
+        endif()
+
+        if(TARGET utf8_range::utf8_validity)
+            list(APPEND _protobuf_fallback_link_targets utf8_range::utf8_validity)
+        endif()
+        if(TARGET utf8_range::utf8_range)
+            list(APPEND _protobuf_fallback_link_targets utf8_range::utf8_range)
+        endif()
+
+        if(_protobuf_fallback_link_targets)
+            target_link_libraries(GameNetworkingSockets_s PUBLIC ${_protobuf_fallback_link_targets})
+            message(STATUS "Added protobuf transitive link fallback targets: ${_protobuf_fallback_link_targets}")
+        endif()
+
+        unset(_protobuf_fallback_link_targets)
     endif()
 endif()
 
@@ -120,22 +178,6 @@ if(BUILD_LEGACY_SCENE_APP)
     target_include_directories(rlImGui PUBLIC ${RLIMGUI_DIR} ${IMGUI_DIR})
     target_link_libraries(rlImGui PUBLIC ${RAYLIB_TARGET} imgui)
 
-    set(FLECS_DIR ${EXTERNAL_DIR}/flecs)
-    if(EXISTS ${FLECS_DIR}/flecs.c AND EXISTS ${FLECS_DIR}/flecs.h)
-        add_library(flecs STATIC ${FLECS_DIR}/flecs.c)
-        target_include_directories(flecs PUBLIC ${FLECS_DIR})
-    elseif(EXISTS ${FLECS_DIR}/CMakeLists.txt)
-        add_subdirectory(${FLECS_DIR})
-    else()
-        find_package(flecs CONFIG REQUIRED)
-    endif()
-
-    set(FLECS_LIB flecs)
-    if(TARGET flecs::flecs)
-        set(FLECS_LIB flecs::flecs)
-    elseif(TARGET flecs_static)
-        set(FLECS_LIB flecs_static)
-    endif()
 endif()
 
 add_library(shared_game INTERFACE)
@@ -164,17 +206,23 @@ if(BUILD_GAME_CLIENT)
     add_library(client_runtime STATIC
         src/client/client_entry.cpp
         src/client/client_entry.hpp
+        src/client/app/client_app.cpp
+        src/client/app/client_app.hpp
         src/client/game_client.cpp
         src/client/game_client.hpp
         src/client/components/components.hpp
         src/client/core/application.hpp
         src/client/core/config.hpp
+        src/client/modules/client_phases.hpp
+        src/client/modules/client_runtime_module.hpp
         src/client/core/menu_model.hpp
         src/client/core/runtime_state.hpp
         src/client/core/scene.hpp
         src/client/core/scene_manager.hpp
         src/client/input/input_manager.hpp
         src/client/physics/movement_system.hpp
+        src/client/runtime/client_runtime.cpp
+        src/client/runtime/client_runtime.hpp
         src/client/scenes/menu_scene.hpp
         src/client/scenes/sandbox_scene.hpp
         src/client/scenes/splash_scene.hpp
@@ -182,7 +230,7 @@ if(BUILD_GAME_CLIENT)
         src/client/ui/debug_overlay.hpp
     )
     target_include_directories(client_runtime PUBLIC ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(client_runtime PUBLIC shared_game shared_net raylib_cpp argparse::argparse)
+    target_link_libraries(client_runtime PUBLIC shared_game shared_net raylib_cpp ${FLECS_LIB} argparse::argparse)
     apply_project_warnings(client_runtime)
 
     add_executable(game_client src/client/main.cpp)
@@ -204,15 +252,21 @@ endif()
 
 if(BUILD_GAME_SERVER)
     add_library(server_runtime STATIC
+        src/server/app/server_app.cpp
+        src/server/app/server_app.hpp
         src/server/game_server.cpp
         src/server/game_server.hpp
+        src/server/modules/server_phases.hpp
+        src/server/modules/server_runtime_module.hpp
+        src/server/runtime/server_runtime.cpp
+        src/server/runtime/server_runtime.hpp
         src/server/world_persistence.cpp
         src/server/world_persistence.hpp
         src/server/config/server_config.cpp
         src/server/config/server_config.hpp
     )
     target_include_directories(server_runtime PUBLIC ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(server_runtime PUBLIC shared_game shared_net)
+    target_link_libraries(server_runtime PUBLIC shared_game shared_net ${FLECS_LIB})
     apply_project_warnings(server_runtime)
 
     add_executable(game_server src/server/main.cpp)

@@ -89,6 +89,12 @@ Direct auto-join (dev shortcut):
 ./build/debug/game_client --host 127.0.0.1 --port 27020 --name alice --auto-join --skip-splash
 ```
 
+## Runtime Notes
+- Both `game_client` and `game_server` now bootstrap through `flecs::world` composition roots.
+- Client runtime phase order is validated by `test_sim_client_pipeline`.
+- Server runtime phase order is validated by `test_sim_server_pipeline`.
+- The current UI/presentation stack is transitional: menu flow still rides on the existing runtime-state + scene mapping behind the new flecs shell.
+
 ## Controls
 - Move: `A/D` or arrows
 - Jump: `Space`
@@ -109,6 +115,11 @@ Direct auto-join (dev shortcut):
 6. Confirm overlay shows ping/queue/throughput values.
 7. Confirm overlay chunk counters update (loaded chunks, version conflicts).
 8. Close one client and confirm despawn/disconnect behavior on the other.
+
+If you are validating the Phase 4 flecs foundation specifically, also confirm:
+1. `game_server` starts and accepts connections with no runtime regressions.
+2. `game_client` still reaches splash/menu and the join form through the new app shell.
+3. Automated phase-order tests pass before manual GUI checks.
 
 ## Config Notes
 `src/server/config/server.cfg` supports:

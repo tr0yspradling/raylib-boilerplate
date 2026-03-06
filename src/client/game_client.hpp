@@ -1,35 +1,8 @@
 #pragma once
 
-#include <chrono>
-#include <cstdint>
-#include <deque>
-#include <optional>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
-#include <raylib-cpp.hpp>
-
-#include "client/components/components.hpp"
-#include "client/core/application.hpp"
-#include "client/core/client_config.hpp"
-#include "client/core/menu_model.hpp"
-#include "client/core/runtime_state.hpp"
-#include "client/core/scene_manager.hpp"
-#include "client/input/input_manager.hpp"
-#include "client/physics/movement_system.hpp"
-#include "client/systems/render_system.hpp"
-#include "shared/game/chunk.hpp"
-#include "shared/game/entity.hpp"
-#include "shared/game/fixed_step.hpp"
-#include "shared/game/interpolation.hpp"
-#include "shared/net/protocol.hpp"
-#include "shared/net/transport_gns.hpp"
+#include "client/app/client_app.hpp"
 
 namespace client {
-
-namespace game = shared::game;
-namespace net = shared::net;
 
 class GameClient {
 public:
@@ -39,100 +12,7 @@ public:
     int Run();
 
 private:
-    struct RemotePlayerView {
-        game::PlayerId playerId{};
-        std::string displayName;
-        game::EntityId entityId{};
-        game::Vec2f latestPosition{};
-        game::PositionInterpolationBuffer interpolation;
-    };
-
-    struct ClientChunkState {
-        game::ChunkData chunk;
-    };
-
-    void PollTransport();
-    void HandleConnectionEvents();
-    void HandleIncomingPackets();
-    void HandleRuntimeInput();
-    void HandleJoinFormInput();
-    void CaptureJoinFormTextInput();
-    void ActivateMenuAction(core::MenuAction action);
-    bool BeginJoinServer();
-    bool ApplyJoinFormToConfig();
-    void ReturnToMenu();
-
-    void OnConnectedToServer();
-
-    void HandleServerWelcome(const net::ServerWelcomeMessage& message);
-    void HandleWorldMetadata(const net::WorldMetadataMessage& message);
-    void HandleSpawnPlayer(const net::SpawnPlayerMessage& message);
-    void HandleDespawnEntity(const net::DespawnEntityMessage& message);
-    void HandleSnapshot(const net::SnapshotPayload& snapshot);
-    void HandleChunkBaseline(const net::ChunkBaselineMessage& message);
-    void HandleChunkDelta(const net::ChunkDeltaMessage& message);
-    void HandleChunkUnsubscribe(const net::ChunkUnsubscribeMessage& message);
-    void HandleResyncRequired(const net::ResyncRequiredMessage& message);
-    void HandleDisconnectReason(const net::DisconnectReasonMessage& message);
-    void ResetSessionState();
-    void RefreshRuntimeState();
-
-    void StepSimulation();
-    void SendInputFrame(const game::PlayerInputFrame& frame);
-    void SendChunkInterestHint();
-    void RequestChunkResync(const game::ChunkCoord& coord, uint32_t clientVersion);
-    void ReconcileFromSnapshot(const net::SnapshotEntity& localEntity);
-
-    void DrawFrame(float frameSeconds);
-    [[nodiscard]] components::WorldRenderState BuildWorldRenderState() const;
-    [[nodiscard]] components::NetworkDebugState BuildDebugState() const;
-
-    [[nodiscard]] bool IsLocalPlayerReady() const;
-
-    ClientConfig config_;
-
-    std::optional<raylib::Window> window_;
-
-    net::TransportGns transport_;
-    net::ConnectionHandle serverConnection_ = net::kInvalidConnectionHandle;
-    bool connecting_ = false;
-    bool connected_ = false;
-    bool serverWelcomed_ = false;
-    std::string disconnectReason_;
-    std::string runtimeStatusMessage_;
-    bool debugOverlayEnabled_ = true;
-    bool exitRequested_ = false;
-    std::chrono::steady_clock::time_point splashStartedAt_{};
-
-    game::FixedStep fixedStep_;
-    core::SceneManager sceneManager_{};
-    core::RuntimeState runtimeState_{};
-    core::MenuSelectionState menuSelectionState_{};
-    core::JoinServerFormState joinFormState_{};
-    input::InputManager inputManager_{};
-    game::TickId clientTick_ = 0;
-    game::TickId latestServerTick_ = 0;
-    float renderInterpolationTick_ = 0.0f;
-    uint16_t serverTickRateHz_ = 30;
-    uint16_t serverSnapshotRateHz_ = 15;
-    game::PlayerKinematicsConfig serverKinematics_{};
-    game::WorldConfig serverWorldConfig_{};
-    bool hasWorldMetadata_ = false;
-
-    game::PlayerId localPlayerId{};
-    game::PlayerState predictedLocalPlayer_{};
-    std::deque<game::PlayerInputFrame> pendingInputs_;
-    uint32_t nextInputSequence_ = 1;
-
-    std::unordered_map<game::PlayerId, RemotePlayerView, game::IdHash<game::PlayerIdTag>> remotePlayers_;
-    std::unordered_map<game::ChunkCoord, ClientChunkState, game::ChunkCoordHash> chunksByCoord_;
-    std::unordered_map<game::ChunkCoord, std::chrono::steady_clock::time_point, game::ChunkCoordHash>
-        chunkResyncRequestedAt_;
-    uint32_t chunkVersionConflictCount_ = 0;
-
-    std::chrono::steady_clock::time_point lastPingSentAt_{};
-    std::chrono::steady_clock::time_point lastChunkHintSentAt_{};
-    uint32_t nextPingSequence_ = 1;
+    app::ClientApp app_;
 };
 
 }  // namespace client
