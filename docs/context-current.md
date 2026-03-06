@@ -4,7 +4,7 @@ Last updated: 2026-03-06
 
 ## Current Focus
 - Runtime reshape for client flow: splash -> main menu -> mode-specific paths.
-- Phase 2A menu-first runtime slice completed.
+- Phase 3 join-form slice completed on top of Phase 2A menu-first runtime.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -34,15 +34,21 @@ Last updated: 2026-03-06
   - parser-generated `--help` output
   - consistent parse error handling + usage text
   - vendored header-only dependency under `external/argparse/`
+- Implemented Phase 3 join flow depth:
+  - main-menu `Join Server` opens join form instead of auto-starting connect
+  - join form supports host/port/name editing and connect/back actions
+  - runtime now distinguishes `JoinServer` form scene from `Connecting` scene using live connect state
+  - connect failures stay in join UX with retry messaging
+  - added tests: `test_sim_join_form_model`, expanded `test_sim_runtime_scene_transitions`
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`10/10`).
+- Tests: `ctest --preset debug` passing (`11/11`).
 
 ## Open Risks / Gaps
 - `Start Server`, `Singleplayer`, and `Options` remain placeholders (no real runtime flows yet).
-- Join form editing UX (host/port/name in-menu) is still pending.
+- Post-multiplayer disconnect reason retention after returning to menu is still pending.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
 ## Active Plan Docs
@@ -51,7 +57,7 @@ Last updated: 2026-03-06
 - `docs/runtime-phase2-plan.md`
 
 ## Next Recommended Step
-- Implement Phase 2B / Phase 3 join flow depth:
-  - join form editing UX (host/port/name) from main menu
-  - connect/disconnect lifecycle polish and menu return paths
-  - replace placeholder `Start Server` / `Singleplayer` / `Options` with real implementations
+- Implement Phase 4 local dedicated launcher path:
+  - `Start Server` process launch and readiness gating
+  - auto-join localhost transition (`StartingServer -> Connecting -> GameplayMultiplayer`)
+  - failure reporting back to menu without losing actionable reason text

@@ -28,6 +28,10 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - interactive menu navigation/action dispatch is wired
   - `Join Server` and `Quit` are fully wired
   - `Start Server` / `Singleplayer` / `Options` currently route to placeholders
+- Phase 3 join-form slice is complete:
+  - menu `Join Server` opens editable host/port/name form state
+  - `JoinServer` (form) and `Connecting` (active network attempt) are now distinct runtime scenes
+  - connect failures return to join UX for retry instead of forcing disconnected scene
 
 ## Target Runtime Shape
 
@@ -99,6 +103,14 @@ Goal: present interactive menu options in client runtime.
 
 ## Phase 3: Join Server Flow
 Goal: user-driven connection flow from menu.
+
+### Current Status (2026-03-06)
+- Completed in the current implementation:
+  - join form model and editable fields (`host`, `port`, `name`)
+  - explicit `MainMenu -> JoinServer -> Connecting -> GameplayMultiplayer` transitions
+  - join failure feedback in join UX with retry path
+- Remaining follow-up:
+  - retain disconnect reason after leaving the disconnected screen and returning to menu
 
 ### Changes
 - Add join form model (host/port/name) with defaults from config:

@@ -80,6 +80,9 @@ Client 2:
 ```bash
 ./build/debug/game_client --host 127.0.0.1 --port 27020 --name bob
 ```
+After launch, use the main menu:
+- Select `Join Server` to open the join form.
+- Edit host/port/name as needed, then select `Connect`.
 
 Direct auto-join (dev shortcut):
 ```bash
@@ -92,11 +95,14 @@ Direct auto-join (dev shortcut):
 - Toggle net debug overlay: `Tab`
 - Menu navigate: `W/S` or arrows (gamepad D-pad up/down)
 - Menu select: `Enter`/`Space` (gamepad south face button)
+- Menu back: `Esc` (gamepad east face button)
+- Join form editing: select `Host`/`Port`/`Name`, type text, `Backspace` to erase, `Enter`/`Esc` to stop editing
+- While connecting: `Esc` cancels and returns to menu
 - Return from placeholder/disconnected screens: `Enter` or `Esc`
 
 ## Smoke Test Checklist
 1. Start `game_server`.
-2. Start two clients, navigate to `Join Server` in menu, and confirm both connect.
+2. Start two clients, open `Join Server`, verify join-form navigation/editing, then connect both clients.
 3. Confirm each client sees both players moving.
 4. Confirm local movement remains responsive (prediction).
 5. Confirm remote movement is smoothed (interpolation).

@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace client::core {
@@ -30,6 +31,31 @@ enum class MenuAction : uint8_t {
         return "Options";
     case MenuAction::Quit:
         return "Quit";
+    }
+
+    return "Unknown";
+}
+
+enum class JoinFormField : uint8_t {
+    Host = 0,
+    Port,
+    Name,
+    Connect,
+    Back,
+};
+
+[[nodiscard]] inline std::string_view JoinFormFieldName(JoinFormField field) {
+    switch (field) {
+    case JoinFormField::Host:
+        return "Host";
+    case JoinFormField::Port:
+        return "Port";
+    case JoinFormField::Name:
+        return "Name";
+    case JoinFormField::Connect:
+        return "Connect";
+    case JoinFormField::Back:
+        return "Back";
     }
 
     return "Unknown";
@@ -64,6 +90,45 @@ public:
 
 private:
     size_t selectedIndex_ = 0U;
+};
+
+class JoinServerFormState {
+public:
+    static constexpr std::array<JoinFormField, 5> kFields{
+        JoinFormField::Host,
+        JoinFormField::Port,
+        JoinFormField::Name,
+        JoinFormField::Connect,
+        JoinFormField::Back,
+    };
+
+    void ResetFromDefaults(const std::string& defaultHost, uint16_t defaultPort, const std::string& defaultName) {
+        host = defaultHost;
+        port = std::to_string(defaultPort);
+        playerName = defaultName;
+        selectedIndex = 0U;
+        editing = false;
+    }
+
+    [[nodiscard]] size_t SelectedIndex() const { return selectedIndex; }
+    [[nodiscard]] JoinFormField SelectedField() const { return kFields[selectedIndex]; }
+
+    void MoveNext() { selectedIndex = (selectedIndex + 1U) % kFields.size(); }
+
+    void MovePrevious() { selectedIndex = selectedIndex == 0U ? (kFields.size() - 1U) : (selectedIndex - 1U); }
+
+    [[nodiscard]] bool SelectedFieldIsEditable() const {
+        const JoinFormField field = SelectedField();
+        return field == JoinFormField::Host || field == JoinFormField::Port || field == JoinFormField::Name;
+    }
+
+    std::string host = "127.0.0.1";
+    std::string port = "27020";
+    std::string playerName = "player";
+    bool editing = false;
+
+private:
+    size_t selectedIndex = 0U;
 };
 
 }  // namespace client::core

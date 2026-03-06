@@ -21,7 +21,7 @@ public:
             scenes.SwitchTo(SceneKind::MainMenu);
             return;
         case RuntimeMode::JoiningServer:
-            scenes.SwitchTo(SceneKind::JoinServer);
+            scenes.SwitchTo(runtime.joiningInProgress ? SceneKind::Connecting : SceneKind::JoinServer);
             return;
         case RuntimeMode::StartingLocalServer:
             scenes.SwitchTo(SceneKind::StartingServer);

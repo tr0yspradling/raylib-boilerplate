@@ -1,6 +1,7 @@
 #include "client/game_client.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <cstdio>
 #include <span>
@@ -36,7 +37,7 @@ constexpr std::chrono::milliseconds kSplashDuration{1400};
         if (!statusMessage.empty()) {
             return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
         }
-        return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::ConnectingCaption()};
+        return std::string{core::SceneName(sceneKind)} + " - Configure destination";
     case core::SceneKind::StartingServer:
         if (!statusMessage.empty()) {
             return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
@@ -84,7 +85,9 @@ bool GameClient::Initialize() {
     runtimeState_.splashCompleted = config_.skipSplash;
     runtimeState_.requestedJoin = config_.autoJoin;
     runtimeState_.disconnectReason.clear();
+    runtimeState_.joiningInProgress = false;
     runtimeStatusMessage_.clear();
+    joinFormState_.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
     splashStartedAt_ = std::chrono::steady_clock::now();
     sceneManager_.SwitchTo(runtimeState_.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
     return true;
@@ -179,8 +182,20 @@ void GameClient::PollTransport() {
 void GameClient::HandleRuntimeInput() {
     switch (runtimeState_.mode) {
     case core::RuntimeMode::Boot:
-    case core::RuntimeMode::JoiningServer:
     case core::RuntimeMode::Multiplayer:
+        return;
+    case core::RuntimeMode::JoiningServer:
+        if (runtimeState_.joiningInProgress) {
+            if (inputManager_.MenuBackPressed()) {
+                if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
+                    transport_.Close(serverConnection_, 0, "join canceled", false);
+                }
+                ResetSessionState();
+                ReturnToMenu();
+            }
+            return;
+        }
+        HandleJoinFormInput();
         return;
     case core::RuntimeMode::Menu:
         if (inputManager_.MenuDownPressed()) {
@@ -204,11 +219,133 @@ void GameClient::HandleRuntimeInput() {
     }
 }
 
+void GameClient::HandleJoinFormInput() {
+    if (joinFormState_.editing) {
+        CaptureJoinFormTextInput();
+        if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed()) {
+            joinFormState_.editing = false;
+            runtimeStatusMessage_.clear();
+        }
+        return;
+    }
+
+    if (inputManager_.MenuDownPressed()) {
+        joinFormState_.MoveNext();
+    }
+    if (inputManager_.MenuUpPressed()) {
+        joinFormState_.MovePrevious();
+    }
+
+    if (inputManager_.MenuBackPressed()) {
+        ReturnToMenu();
+        return;
+    }
+
+    if (!inputManager_.MenuSelectPressed()) {
+        return;
+    }
+
+    switch (joinFormState_.SelectedField()) {
+    case core::JoinFormField::Host:
+    case core::JoinFormField::Port:
+    case core::JoinFormField::Name:
+        joinFormState_.editing = true;
+        runtimeStatusMessage_ = "Editing field. Type, Backspace to erase, Enter/Esc to finish";
+        return;
+    case core::JoinFormField::Connect:
+        if (!ApplyJoinFormToConfig()) {
+            return;
+        }
+        runtimeStatusMessage_.clear();
+        BeginJoinServer();
+        return;
+    case core::JoinFormField::Back:
+        ReturnToMenu();
+        return;
+    }
+}
+
+void GameClient::CaptureJoinFormTextInput() {
+    std::string* target = nullptr;
+    const core::JoinFormField field = joinFormState_.SelectedField();
+    switch (field) {
+    case core::JoinFormField::Host:
+        target = &joinFormState_.host;
+        break;
+    case core::JoinFormField::Port:
+        target = &joinFormState_.port;
+        break;
+    case core::JoinFormField::Name:
+        target = &joinFormState_.playerName;
+        break;
+    case core::JoinFormField::Connect:
+    case core::JoinFormField::Back:
+        return;
+    }
+
+    int codepoint = GetCharPressed();
+    while (codepoint > 0) {
+        if (codepoint >= 32 && codepoint <= 126) {
+            const char character = static_cast<char>(codepoint);
+            if (field == core::JoinFormField::Port) {
+                if (character >= '0' && character <= '9' && target->size() < 5U) {
+                    target->push_back(character);
+                }
+            } else {
+                const size_t maxSize = field == core::JoinFormField::Host ? 64U : 24U;
+                if (target->size() < maxSize) {
+                    target->push_back(character);
+                }
+            }
+        }
+
+        codepoint = GetCharPressed();
+    }
+
+    if (raylib::Keyboard::IsKeyPressed(KEY_BACKSPACE) && !target->empty()) {
+        target->pop_back();
+    }
+}
+
+bool GameClient::ApplyJoinFormToConfig() {
+    if (joinFormState_.host.empty()) {
+        runtimeStatusMessage_ = "Host is required";
+        return false;
+    }
+    if (joinFormState_.playerName.empty()) {
+        runtimeStatusMessage_ = "Player name is required";
+        return false;
+    }
+    if (joinFormState_.port.empty()) {
+        runtimeStatusMessage_ = "Port is required";
+        return false;
+    }
+
+    uint32_t parsedPort = 0;
+    const char* begin = joinFormState_.port.data();
+    const char* end = begin + joinFormState_.port.size();
+    const auto [ptr, error] = std::from_chars(begin, end, parsedPort);
+    if (error != std::errc{} || ptr != end || parsedPort == 0 || parsedPort > 65535) {
+        runtimeStatusMessage_ = "Port must be between 1 and 65535";
+        return false;
+    }
+
+    config_.serverHost = joinFormState_.host;
+    config_.serverPort = static_cast<uint16_t>(parsedPort);
+    config_.playerName = joinFormState_.playerName;
+    return true;
+}
+
 void GameClient::ActivateMenuAction(core::MenuAction action) {
     switch (action) {
     case core::MenuAction::JoinServer:
-        runtimeStatusMessage_.clear();
-        runtimeState_.requestedJoin = true;
+        runtimeState_.requestedJoin = false;
+        runtimeState_.mode = core::RuntimeMode::JoiningServer;
+        runtimeState_.joiningInProgress = false;
+        joinFormState_.editing = false;
+        runtimeStatusMessage_ = "Select a field and press Enter to edit";
+        disconnectReason_.clear();
+        runtimeState_.disconnectReason.clear();
         return;
     case core::MenuAction::Quit:
         exitRequested_ = true;
@@ -235,16 +372,18 @@ bool GameClient::BeginJoinServer() {
         return true;
     }
 
+    runtimeState_.mode = core::RuntimeMode::JoiningServer;
+    runtimeState_.joiningInProgress = false;
+    joinFormState_.editing = false;
     runtimeStatusMessage_.clear();
     disconnectReason_.clear();
     runtimeState_.disconnectReason.clear();
-    runtimeState_.mode = core::RuntimeMode::JoiningServer;
 
     if (!transport_.IsInitialized()) {
         std::string error;
         if (!transport_.Initialize(net::TransportConfig{.isServer = false, .debugVerbosity = 4, .allowUnencryptedDev = true},
                                    error)) {
-            disconnectReason_ = "transport init failed: " + error;
+            runtimeStatusMessage_ = "Transport init failed: " + error;
             std::fprintf(stderr, "[net.transport] client transport init failed: %s\n", error.c_str());
             return false;
         }
@@ -253,12 +392,14 @@ bool GameClient::BeginJoinServer() {
     std::string error;
     serverConnection_ = transport_.Connect(config_.serverHost, config_.serverPort, error);
     if (serverConnection_ == net::kInvalidConnectionHandle) {
-        disconnectReason_ = "connect failed: " + error;
+        runtimeStatusMessage_ = "Connect failed: " + error;
         std::fprintf(stderr, "[net.transport] connect failed: %s\n", error.c_str());
         return false;
     }
 
     connecting_ = true;
+    runtimeState_.joiningInProgress = true;
+    runtimeStatusMessage_ = "Connecting...";
     return true;
 }
 
@@ -267,6 +408,8 @@ void GameClient::ReturnToMenu() {
     runtimeState_.disconnectReason.clear();
     runtimeStatusMessage_.clear();
     runtimeState_.requestedJoin = false;
+    runtimeState_.joiningInProgress = false;
+    joinFormState_.editing = false;
     runtimeState_.mode = core::RuntimeMode::Menu;
 }
 
@@ -280,7 +423,7 @@ void GameClient::HandleConnectionEvents() {
         if (event.type == net::ConnectionEventType::Connected) {
             connected_ = true;
             connecting_ = false;
-            runtimeStatusMessage_.clear();
+            runtimeStatusMessage_ = "Connected, waiting for server welcome...";
             OnConnectedToServer();
             continue;
         }
@@ -290,6 +433,12 @@ void GameClient::HandleConnectionEvents() {
             connected_ = false;
             disconnectReason_ = event.reason.empty() ? "connection closed" : event.reason;
             ResetSessionState();
+
+            if (runtimeState_.mode == core::RuntimeMode::JoiningServer) {
+                runtimeStatusMessage_ = "Join failed: " + disconnectReason_;
+                disconnectReason_.clear();
+                runtimeState_.disconnectReason.clear();
+            }
         }
     }
 }
@@ -583,6 +732,12 @@ void GameClient::HandleDisconnectReason(const net::DisconnectReasonMessage& mess
     disconnectReason_ = message.reason;
     connected_ = false;
     ResetSessionState();
+
+    if (runtimeState_.mode == core::RuntimeMode::JoiningServer) {
+        runtimeStatusMessage_ = "Join failed: " + disconnectReason_;
+        disconnectReason_.clear();
+        runtimeState_.disconnectReason.clear();
+    }
 }
 
 void GameClient::ResetSessionState() {
@@ -602,13 +757,24 @@ void GameClient::ResetSessionState() {
     latestServerTick_ = 0;
     renderInterpolationTick_ = 0.0f;
     nextInputSequence_ = 1;
+    serverConnection_ = net::kInvalidConnectionHandle;
+    runtimeState_.joiningInProgress = false;
 }
 
 void GameClient::RefreshRuntimeState() {
-    runtimeState_.disconnectReason = disconnectReason_;
     if (!disconnectReason_.empty()) {
-        runtimeState_.mode = core::RuntimeMode::Disconnected;
-        return;
+        runtimeState_.disconnectReason = disconnectReason_;
+        if (runtimeState_.mode == core::RuntimeMode::JoiningServer) {
+            runtimeStatusMessage_ = "Join failed: " + disconnectReason_;
+            disconnectReason_.clear();
+            runtimeState_.disconnectReason.clear();
+            runtimeState_.joiningInProgress = false;
+        } else {
+            runtimeState_.mode = core::RuntimeMode::Disconnected;
+            return;
+        }
+    } else {
+        runtimeState_.disconnectReason.clear();
     }
 
     switch (runtimeState_.mode) {
@@ -618,12 +784,14 @@ void GameClient::RefreshRuntimeState() {
         }
         return;
     case core::RuntimeMode::Menu:
+        runtimeState_.joiningInProgress = false;
         return;
     case core::RuntimeMode::JoiningServer:
+        runtimeState_.joiningInProgress = connecting_ || (connected_ && !serverWelcomed_);
         if (connected_ && serverWelcomed_) {
+            runtimeStatusMessage_.clear();
+            runtimeState_.joiningInProgress = false;
             runtimeState_.mode = core::RuntimeMode::Multiplayer;
-        } else if (!connecting_ && !connected_) {
-            runtimeState_.mode = core::RuntimeMode::Menu;
         }
         return;
     case core::RuntimeMode::Multiplayer:
@@ -799,6 +967,11 @@ components::NetworkDebugState GameClient::BuildDebugState() const {
         state.menuActions.emplace_back(core::MenuActionName(action));
     }
     state.selectedMenuIndex = menuSelectionState_.SelectedIndex();
+    state.joinHost = joinFormState_.host;
+    state.joinPort = joinFormState_.port;
+    state.joinPlayerName = joinFormState_.playerName;
+    state.selectedJoinFieldIndex = joinFormState_.SelectedIndex();
+    state.joinEditing = joinFormState_.editing;
     return state;
 }
 

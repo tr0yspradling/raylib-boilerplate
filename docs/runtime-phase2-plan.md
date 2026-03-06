@@ -1,5 +1,78 @@
 # Runtime Reshape: Phase 2A Execution Plan
 
+## Maintenance Slice (2026-03-06): Phase 3 Join Form and Join UX
+
+### Current Scope
+- Add editable Join form state (host/port/name) to the menu runtime model.
+- Route `Join Server` from main menu into a real join form scene.
+- Distinguish `JoinServer` form scene from `Connecting` progress scene.
+- Keep connect failure feedback in join UX (instead of immediately dropping into disconnected scene).
+
+### Assumptions
+- This slice does not implement Start Server process launch, singleplayer runtime, or options persistence.
+- Existing network protocol/handshake/snapshot behavior remains unchanged.
+- Argparse-based client CLI remains the source of startup defaults and flags.
+
+### Concrete File Touch List
+- `docs/runtime-phase2-plan.md`
+- `docs/runtime-reshape-plan.md`
+- `docs/context-current.md`
+- `docs/multiplayer-runbook.md`
+- `src/client/core/runtime_state.hpp`
+- `src/client/core/application.hpp`
+- `src/client/core/menu_model.hpp`
+- `src/client/components/components.hpp`
+- `src/client/game_client.hpp`
+- `src/client/game_client.cpp`
+- `src/client/systems/render_system.hpp`
+- `tests/CMakeLists.txt`
+- `tests/sim/runtime_scene_transitions.cpp`
+- `tests/sim/menu_model.cpp`
+- `tests/sim/join_form_model.cpp` (new)
+
+### Acceptance Criteria
+- Main menu `Join Server` opens an editable join form scene.
+- Join form supports host/port/name edits and connect submit.
+- Join scene and connecting scene are distinct:
+  - form edit state -> `JoinServer`
+  - active network connect -> `Connecting`
+- Join connect failures are surfaced in join UX and allow retry.
+- Validation gate passes:
+  - `cmake --build --preset debug -j`
+  - `ctest --preset debug`
+
+### Status
+- Completed.
+
+### Progress Update
+- Completed work:
+  - Routed main-menu `Join Server` into an editable join form scene instead of direct connect side effects.
+  - Added join-form editing flow for host/port/name plus connect/back actions.
+  - Drove `JoinServer` vs `Connecting` scene transitions from real connection lifecycle via `joiningInProgress`.
+  - Kept connection failures in join UX with retry messaging instead of dropping to disconnected scene.
+  - Added dedicated join-form model tests and expanded runtime scene transition coverage.
+  - Validation gate passed:
+    - `cmake --build --preset debug -j`
+    - `ctest --preset debug`
+- Changed files:
+  - `docs/runtime-phase2-plan.md`
+  - `docs/runtime-reshape-plan.md`
+  - `docs/context-current.md`
+  - `docs/multiplayer-runbook.md`
+  - `src/client/core/runtime_state.hpp`
+  - `src/client/core/application.hpp`
+  - `src/client/core/menu_model.hpp`
+  - `src/client/components/components.hpp`
+  - `src/client/game_client.hpp`
+  - `src/client/game_client.cpp`
+  - `src/client/systems/render_system.hpp`
+  - `tests/CMakeLists.txt`
+  - `tests/sim/runtime_scene_transitions.cpp`
+  - `tests/sim/join_form_model.cpp`
+- Remaining risks/blockers:
+  - `Start Server`, `Singleplayer`, and `Options` are still placeholder routes.
+  - Post-multiplayer disconnect reason retention after returning to menu remains a follow-up item.
+
 ## Maintenance Slice (2026-03-06): Client CLI Argparse Migration
 
 ### Current Scope

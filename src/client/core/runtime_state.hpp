@@ -20,6 +20,7 @@ struct RuntimeState {
     RuntimeMode mode = RuntimeMode::Boot;
     bool splashCompleted = false;
     bool requestedJoin = false;
+    bool joiningInProgress = false;
     bool requestedLocalServerStart = false;
     bool requestedSingleplayer = false;
     bool requestedOptions = false;

@@ -34,6 +34,10 @@ add_executable(test_sim_runtime_scene_transitions sim/runtime_scene_transitions.
 target_include_directories(test_sim_runtime_scene_transitions PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_runtime_scene_transitions PRIVATE shared_game)
 
+add_executable(test_sim_join_form_model sim/join_form_model.cpp)
+target_include_directories(test_sim_join_form_model PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_join_form_model PRIVATE shared_game)
+
 add_executable(test_sim_client_args sim/client_args.cpp)
 target_include_directories(test_sim_client_args PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_client_args PRIVATE shared_game argparse::argparse)
@@ -47,4 +51,5 @@ add_test(NAME test_sim_chunk_interest COMMAND test_sim_chunk_interest)
 add_test(NAME test_sim_chunk_delta COMMAND test_sim_chunk_delta)
 add_test(NAME test_sim_menu_model COMMAND test_sim_menu_model)
 add_test(NAME test_sim_runtime_scene_transitions COMMAND test_sim_runtime_scene_transitions)
+add_test(NAME test_sim_join_form_model COMMAND test_sim_join_form_model)
 add_test(NAME test_sim_client_args COMMAND test_sim_client_args)

@@ -41,6 +41,11 @@ struct NetworkDebugState {
     uint32_t chunkVersionConflicts = 0;
     std::vector<std::string> menuActions;
     size_t selectedMenuIndex = 0;
+    std::string joinHost;
+    std::string joinPort;
+    std::string joinPlayerName;
+    size_t selectedJoinFieldIndex = 0;
+    bool joinEditing = false;
     std::optional<net::ConnectionMetrics> metrics;
 };
 

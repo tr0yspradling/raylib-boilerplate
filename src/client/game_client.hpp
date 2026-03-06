@@ -55,8 +55,11 @@ private:
     void HandleConnectionEvents();
     void HandleIncomingPackets();
     void HandleRuntimeInput();
+    void HandleJoinFormInput();
+    void CaptureJoinFormTextInput();
     void ActivateMenuAction(core::MenuAction action);
     bool BeginJoinServer();
+    bool ApplyJoinFormToConfig();
     void ReturnToMenu();
 
     void OnConnectedToServer();
@@ -105,6 +108,7 @@ private:
     core::SceneManager sceneManager_{};
     core::RuntimeState runtimeState_{};
     core::MenuSelectionState menuSelectionState_{};
+    core::JoinServerFormState joinFormState_{};
     input::InputManager inputManager_{};
     game::TickId clientTick_ = 0;
     game::TickId latestServerTick_ = 0;

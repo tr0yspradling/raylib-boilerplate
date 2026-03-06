@@ -23,10 +23,16 @@ int main() {
     assert(scenes.ActiveScene() == SceneKind::MainMenu);
 
     runtime.mode = RuntimeMode::JoiningServer;
+    runtime.joiningInProgress = false;
     Application::UpdateScene(scenes, runtime);
     assert(scenes.ActiveScene() == SceneKind::JoinServer);
 
+    runtime.joiningInProgress = true;
+    Application::UpdateScene(scenes, runtime);
+    assert(scenes.ActiveScene() == SceneKind::Connecting);
+
     runtime.mode = RuntimeMode::StartingLocalServer;
+    runtime.joiningInProgress = false;
     Application::UpdateScene(scenes, runtime);
     assert(scenes.ActiveScene() == SceneKind::StartingServer);
 
