@@ -24,4 +24,4 @@
 	branch = master
 [submodule "external/GameNetworkingSockets"]
 	path = external/GameNetworkingSockets
-	url = git@github.com:ValveSoftware/GameNetworkingSockets.git
+	url = https://github.com/ValveSoftware/GameNetworkingSockets.git

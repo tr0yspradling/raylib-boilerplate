@@ -63,6 +63,25 @@ ctest --preset debug
 JetBrains/CLion:
 - Use preset-backed CMake profiles (`debug`, `release`) to keep profile target matrices and generated files under `build/<profile>/`.
 
+## Continuous Integration
+GitHub Actions workflow: `.github/workflows/crossplatform-build.yml`
+
+Current CI validation matrix:
+- `ubuntu-24.04`
+- `macos-14`
+- `windows-2022`
+
+Workflow behavior:
+- checks out the repository with recursive submodules
+- installs native dependencies per platform:
+  - Linux: `apt-get`
+  - macOS: Homebrew
+  - Windows: `vcpkg`
+- configures with the documented `debug` preset
+- builds with `cmake --build --preset debug --parallel`
+- runs `ctest --preset debug`
+- uploads CMake/CTest logs when a job fails
+
 ## Run Dedicated Server
 Default config file: `src/server/config/server.cfg`
 

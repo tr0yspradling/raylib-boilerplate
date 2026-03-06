@@ -1,0 +1,116 @@
+name: Cross-Platform Build
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crossplatform-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  HOMEBREW_NO_AUTO_UPDATE: 1
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: Ubuntu 24.04
+          - os: macos-14
+            name: macOS 14
+          - os: windows-2022
+            name: Windows 2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Sync submodule metadata
+        run: git submodule sync --recursive
+
+      - name: Show submodule revisions
+        run: git submodule status --recursive
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build pkg-config \
+            libssl-dev protobuf-compiler libprotobuf-dev libabsl-dev \
+            libasound2-dev libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+            libgl1-mesa-dev libwayland-dev libxkbcommon-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        shell: bash
+        run: brew install ninja pkg-config openssl protobuf abseil
+
+      - name: Capture Homebrew prefixes
+        if: runner.os == 'macOS'
+        id: brew
+        shell: bash
+        run: |
+          echo "openssl=$(brew --prefix openssl)" >> "$GITHUB_OUTPUT"
+          echo "protobuf=$(brew --prefix protobuf)" >> "$GITHUB_OUTPUT"
+          echo "abseil=$(brew --prefix abseil)" >> "$GITHUB_OUTPUT"
+
+      - name: Bootstrap vcpkg
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$env:RUNNER_TEMP\vcpkg"
+          & "$env:RUNNER_TEMP\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          & "$env:RUNNER_TEMP\vcpkg\vcpkg.exe" install openssl protobuf abseil --triplet x64-windows
+
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: cmake --preset debug
+
+      - name: Configure (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          cmake --preset debug \
+            -DOPENSSL_ROOT_DIR="${{ steps.brew.outputs.openssl }}" \
+            -DCMAKE_PREFIX_PATH="${{ steps.brew.outputs.openssl }};${{ steps.brew.outputs.protobuf }};${{ steps.brew.outputs.abseil }}"
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --preset debug `
+            -DCMAKE_TOOLCHAIN_FILE="$env:RUNNER_TEMP\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows
+
+      - name: Build
+        run: cmake --build --preset debug --parallel
+
+      - name: Test
+        run: ctest --preset debug
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-debug-logs
+          if-no-files-found: ignore
+          path: |
+            build/debug/CMakeFiles/CMakeOutput.log
+            build/debug/CMakeFiles/CMakeError.log
+            build/debug/Testing/**/*.log

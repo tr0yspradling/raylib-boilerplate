@@ -1,5 +1,54 @@
 # Runtime Reshape: Phase 2A Execution Plan
 
+## Maintenance Slice (2026-03-06): Cross-Platform GitHub Actions Build
+
+### Current Scope
+- Add a production-ready GitHub Actions workflow that configures, builds, and tests the project on Linux, macOS, and Windows.
+- Make CI-safe repository adjustments required for clean runner checkout and dependency bootstrap.
+- Keep the existing preset-based local developer workflow unchanged.
+
+### Assumptions
+- GitHub-hosted runners are the target execution environment for the initial CI workflow.
+- The workflow should validate the existing `debug` preset, because that is the documented minimum validation gate for phase slices.
+- Windows CI will continue to rely on vcpkg for native dependencies (`openssl`, `protobuf`, `abseil`) while raylib and GameNetworkingSockets remain vendored/submodule-backed.
+
+### Concrete File Touch List
+- `.github/workflows/crossplatform-build.yml` (new)
+- `.gitmodules`
+- `CMakeLists.txt`
+- `docs/runtime-phase2-plan.md`
+- `docs/context-current.md`
+- `docs/multiplayer-runbook.md`
+
+### Acceptance Criteria
+- GitHub Actions checks out repository content plus required submodules on clean runners without manual credentials.
+- Linux, macOS, and Windows runners all configure and build with the documented `debug` preset.
+- `ctest --preset debug` runs in CI on all supported platforms.
+- Operational docs describe the CI workflow and any platform-specific dependency/bootstrap behavior it relies on.
+
+### Status
+- Completed.
+
+### Progress Update
+- Completed work:
+  - Added a GitHub Actions workflow that validates the `debug` preset across `ubuntu-24.04`, `macos-14`, and `windows-2022`.
+  - Wired CI checkout to use recursive submodules and upload CMake/CTest logs on failures.
+  - Switched the `external/GameNetworkingSockets` submodule URL to HTTPS so clean GitHub runners can fetch it without SSH credentials.
+  - Hardened top-level CMake Protobuf resolution to prefer package config mode with legacy helper compatibility, which fixes modern Homebrew/vcpkg Abseil linkage for vendored GameNetworkingSockets builds.
+  - Validation gate passed locally after the CMake fix:
+    - `cmake --preset debug`
+    - `cmake --build --preset debug -j`
+    - `ctest --preset debug`
+- Changed files:
+  - `.github/workflows/crossplatform-build.yml`
+  - `.gitmodules`
+  - `CMakeLists.txt`
+  - `docs/runtime-phase2-plan.md`
+  - `docs/context-current.md`
+  - `docs/multiplayer-runbook.md`
+- Remaining risks/blockers:
+  - GitHub-hosted runner execution has not been observed yet from this local environment; the workflow has only been validated by static YAML parsing plus local macOS preset build/test coverage.
+
 ## Maintenance Slice (2026-03-06): Phase 3 Join Form and Join UX
 
 ### Current Scope

@@ -7,6 +7,15 @@ Last updated: 2026-03-06
 - Phase 3 join-form slice completed on top of Phase 2A menu-first runtime.
 
 ## Recent Completed Work
+- Added cross-platform GitHub Actions validation for the preset-based build:
+  - new workflow: `.github/workflows/crossplatform-build.yml`
+  - runner matrix: `ubuntu-24.04`, `macos-14`, `windows-2022`
+  - recursive submodule checkout, platform-native dependency bootstrap, `cmake --preset debug`, `cmake --build --preset debug --parallel`, `ctest --preset debug`
+- Switched the `external/GameNetworkingSockets` submodule remote to HTTPS so clean CI runners can fetch vendored dependencies without SSH credentials.
+- Hardened CMake dependency resolution for modern Protobuf packages:
+  - prefer package config mode
+  - enable `protobuf_MODULE_COMPATIBLE` so vendored GameNetworkingSockets can still use legacy `protobuf_generate_cpp(...)`
+  - fixes Homebrew/vcpkg Abseil linkage during final executable link on modern protobuf releases
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
 - Added strict Phase 1 execution plan doc.
 - Implemented Phase 1 runtime scaffolding:
@@ -45,11 +54,13 @@ Last updated: 2026-03-06
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
 - Tests: `ctest --preset debug` passing (`11/11`).
+- Workflow syntax: `.github/workflows/crossplatform-build.yml` parses as valid YAML locally.
 
 ## Open Risks / Gaps
 - `Start Server`, `Singleplayer`, and `Options` remain placeholders (no real runtime flows yet).
 - Post-multiplayer disconnect reason retention after returning to menu is still pending.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
+- Cross-platform CI has not yet been observed on GitHub-hosted runners from this local environment; first remote run should confirm Windows/macOS package bootstrap timings and behavior.
 
 ## Active Plan Docs
 - `docs/runtime-reshape-plan.md`

@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE INTERNAL "")
 
+# Prefer package configs when available so Protobuf can carry its modern
+# Abseil linkage, while keeping the legacy helper macros vendored deps expect.
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+set(protobuf_MODULE_COMPATIBLE ON CACHE BOOL "Enable legacy Protobuf CMake helpers in config mode" FORCE)
+
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
 option(USE_VENDORED_DEPS "Use dependencies from external directory" ON)
 
