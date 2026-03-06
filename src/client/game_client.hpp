@@ -12,6 +12,7 @@
 
 #include "client/components/components.hpp"
 #include "client/core/application.hpp"
+#include "client/core/client_config.hpp"
 #include "client/core/menu_model.hpp"
 #include "client/core/runtime_state.hpp"
 #include "client/core/scene_manager.hpp"
@@ -29,18 +30,6 @@ namespace client {
 
 namespace game = shared::game;
 namespace net = shared::net;
-
-struct ClientConfig {
-    std::string serverHost = "127.0.0.1";
-    uint16_t serverPort = 27020;
-    std::string playerName = "player";
-    uint32_t buildCompatibilityHash = 0;
-    int windowWidth = 1600;
-    int windowHeight = 900;
-    int targetFps = 120;
-    int simulationTickHz = 30;
-    int interpolationDelayTicks = 2;
-};
 
 class GameClient {
 public:
@@ -65,6 +54,10 @@ private:
     void PollTransport();
     void HandleConnectionEvents();
     void HandleIncomingPackets();
+    void HandleRuntimeInput();
+    void ActivateMenuAction(core::MenuAction action);
+    bool BeginJoinServer();
+    void ReturnToMenu();
 
     void OnConnectedToServer();
 
@@ -103,7 +96,10 @@ private:
     bool connected_ = false;
     bool serverWelcomed_ = false;
     std::string disconnectReason_;
+    std::string runtimeStatusMessage_;
     bool debugOverlayEnabled_ = true;
+    bool exitRequested_ = false;
+    std::chrono::steady_clock::time_point splashStartedAt_{};
 
     game::FixedStep fixedStep_;
     core::SceneManager sceneManager_{};

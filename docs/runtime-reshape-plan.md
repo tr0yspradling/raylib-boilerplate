@@ -17,11 +17,17 @@ Reshape the client runtime flow from the current network-first bootstrap into a 
 This plan preserves the authoritative multiplayer architecture and keeps raylib usage client-only.
 
 ## Current Baseline
-- Scene model is minimal: `Splash`, `Connecting`, `Gameplay`, `Disconnected`.
-- Scene transitions are driven by connection state (`client/core/application.hpp`).
-- `menu_scene.hpp` and `splash_scene.hpp` only provide caption strings.
-- Client runtime eagerly initializes transport/connects in `GameClient::Initialize`.
-- There is no interactive main menu state machine yet.
+- Phase 1 foundation is complete:
+  - expanded scene taxonomy (`Splash`, `MainMenu`, `JoinServer`, `StartingServer`, `Connecting`,
+    `GameplayMultiplayer`, `GameplaySingleplayer`, `Options`, `Disconnected`)
+  - `RuntimeMode` / `RuntimeState` and `MenuAction` / `MenuSelectionState` scaffolding are in place
+  - scene transitions route through `Application::UpdateScene(SceneManager&, const RuntimeState&)`
+- Build workflow is standardized on presets under `build/<preset>`.
+- Phase 2A is complete:
+  - startup defaults to splash -> main menu (no eager connect)
+  - interactive menu navigation/action dispatch is wired
+  - `Join Server` and `Quit` are fully wired
+  - `Start Server` / `Singleplayer` / `Options` currently route to placeholders
 
 ## Target Runtime Shape
 
@@ -61,6 +67,16 @@ Goal: introduce explicit runtime modes and scene kinds without changing gameplay
 ## Phase 2: Main Menu UI and Navigation
 Goal: present interactive menu options in client runtime.
 
+### Current Status (2026-03-06)
+- Phase 2A completed:
+  - menu-first startup is now default
+  - `--auto-join` / `--skip-splash` flags are implemented
+  - interactive menu navigation + action dispatch is wired
+  - `Join Server` and `Quit` are fully wired
+  - `Start Server` / `Singleplayer` / `Options` route to placeholders
+- Remaining for full Phase 2:
+  - replace placeholder routes with real flows (Phase 2B+ / Phase 3+)
+
 ### Changes
 - Add menu rendering + keyboard/gamepad navigation:
   - `src/client/systems/render_system.hpp`
@@ -85,14 +101,15 @@ Goal: present interactive menu options in client runtime.
 Goal: user-driven connection flow from menu.
 
 ### Changes
-- Move connect/transport startup from eager `Initialize` into explicit `BeginJoinServer`.
 - Add join form model (host/port/name) with defaults from config:
   - `src/client/core/menu_model.hpp` (new/extended)
   - `src/client/game_client.cpp`
+- Add explicit join UX validation/error display for failed host/port/name inputs.
+- Harden disconnect return path back to menu with preserved reason text.
 - Preserve existing handshake/prediction/interpolation pipeline after successful join.
 
 ### Acceptance
-- App does not attempt network connection until user selects `Join Server`.
+- Join form supports editing host/port/name before connection attempt.
 - Joining transitions: `MainMenu -> JoinServer -> Connecting -> GameplayMultiplayer`.
 - Disconnect returns to menu with reason preserved.
 

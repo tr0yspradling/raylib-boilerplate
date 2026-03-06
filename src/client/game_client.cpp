@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 
@@ -20,25 +21,48 @@ namespace client {
 
 namespace {
 
-[[nodiscard]] std::string ComposeSceneLabel(core::SceneKind sceneKind) {
+constexpr std::chrono::milliseconds kSplashDuration{1400};
+
+[[nodiscard]] std::string ComposeSceneLabel(core::SceneKind sceneKind, std::string_view statusMessage) {
     switch (sceneKind) {
     case core::SceneKind::Splash:
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::SplashCaption()};
     case core::SceneKind::MainMenu:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)} + " - Select mode";
     case core::SceneKind::JoinServer:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::ConnectingCaption()};
     case core::SceneKind::StartingServer:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)} + " - Booting local dedicated";
     case core::SceneKind::Connecting:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::ConnectingCaption()};
     case core::SceneKind::GameplayMultiplayer:
         return std::string{core::SceneName(sceneKind)} + " - " + std::string{scenes::GameplayCaption()};
     case core::SceneKind::GameplaySingleplayer:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)} + " - Local sandbox";
     case core::SceneKind::Options:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)} + " - Settings";
     case core::SceneKind::Disconnected:
+        if (!statusMessage.empty()) {
+            return std::string{core::SceneName(sceneKind)} + " - " + std::string{statusMessage};
+        }
         return std::string{core::SceneName(sceneKind)};
     }
 
@@ -57,27 +81,12 @@ bool GameClient::Initialize() {
     window_->SetTargetFPS(config_.targetFps);
 
     runtimeState_.mode = core::RuntimeMode::Boot;
-    runtimeState_.splashCompleted = false;
+    runtimeState_.splashCompleted = config_.skipSplash;
+    runtimeState_.requestedJoin = config_.autoJoin;
     runtimeState_.disconnectReason.clear();
-    sceneManager_.SwitchTo(core::SceneKind::Splash);
-
-    std::string error;
-    if (!transport_.Initialize(net::TransportConfig{.isServer = false, .debugVerbosity = 4, .allowUnencryptedDev = true},
-                               error)) {
-        std::fprintf(stderr, "[net.transport] client transport init failed: %s\n", error.c_str());
-        return false;
-    }
-
-    serverConnection_ = transport_.Connect(config_.serverHost, config_.serverPort, error);
-    if (serverConnection_ == net::kInvalidConnectionHandle) {
-        std::fprintf(stderr, "[net.transport] connect failed: %s\n", error.c_str());
-        return false;
-    }
-
-    connecting_ = true;
-    runtimeState_.requestedJoin = true;
-    runtimeState_.mode = core::RuntimeMode::JoiningServer;
-    sceneManager_.SwitchTo(core::SceneKind::JoinServer);
+    runtimeStatusMessage_.clear();
+    splashStartedAt_ = std::chrono::steady_clock::now();
+    sceneManager_.SwitchTo(runtimeState_.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
     return true;
 }
 
@@ -87,7 +96,7 @@ int GameClient::Run() {
     lastPingSentAt_ = lastFrameAt;
     lastChunkHintSentAt_ = lastFrameAt;
 
-    while (window_.has_value() && !raylib::Window::ShouldClose()) {
+    while (window_.has_value() && !raylib::Window::ShouldClose() && !exitRequested_) {
         inputManager_.Update();
         if (inputManager_.DebugOverlayToggled()) {
             debugOverlayEnabled_ = !debugOverlayEnabled_;
@@ -101,6 +110,20 @@ int GameClient::Run() {
         const float frameSeconds = static_cast<float>(frameDelta.count());
         lastFrameAt = now;
 
+        if (!runtimeState_.splashCompleted) {
+            if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed() ||
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - splashStartedAt_) >= kSplashDuration) {
+                runtimeState_.splashCompleted = true;
+            }
+        }
+
+        RefreshRuntimeState();
+        HandleRuntimeInput();
+        if (runtimeState_.mode == core::RuntimeMode::Menu && runtimeState_.requestedJoin) {
+            runtimeState_.requestedJoin = false;
+            BeginJoinServer();
+        }
+
         PollTransport();
 
         const int simSteps = fixedStep_.Accumulate(frameSeconds);
@@ -112,7 +135,7 @@ int GameClient::Run() {
         core::Application::UpdateScene(sceneManager_, runtimeState_);
 
         const auto sinceLastPing = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPingSentAt_);
-        if (connected_ && sinceLastPing.count() >= 1000) {
+        if (runtimeState_.mode == core::RuntimeMode::Multiplayer && connected_ && sinceLastPing.count() >= 1000) {
             net::PingMessage ping{.sequence = nextPingSequence_++};
             const std::vector<uint8_t> payload = net::Serialize(ping);
             const std::vector<uint8_t> packet = net::BuildPacket(net::MessageId::Ping, payload);
@@ -124,7 +147,8 @@ int GameClient::Run() {
         }
 
         const auto sinceLastChunkHint = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastChunkHintSentAt_);
-        if (connected_ && serverWelcomed_ && IsLocalPlayerReady() && sinceLastChunkHint.count() >= 500) {
+        if (runtimeState_.mode == core::RuntimeMode::Multiplayer && connected_ && serverWelcomed_ && IsLocalPlayerReady() &&
+            sinceLastChunkHint.count() >= 500) {
             SendChunkInterestHint();
             lastChunkHintSentAt_ = now;
         }
@@ -132,18 +156,118 @@ int GameClient::Run() {
         DrawFrame(frameSeconds);
     }
 
-    if (connected_) {
+    if (transport_.IsInitialized() && connected_) {
         transport_.Close(serverConnection_, 0, "client shutdown", false);
     }
-    transport_.Shutdown();
+    if (transport_.IsInitialized()) {
+        transport_.Shutdown();
+    }
 
     return 0;
 }
 
 void GameClient::PollTransport() {
+    if (!transport_.IsInitialized()) {
+        return;
+    }
+
     transport_.Poll();
     HandleConnectionEvents();
     HandleIncomingPackets();
+}
+
+void GameClient::HandleRuntimeInput() {
+    switch (runtimeState_.mode) {
+    case core::RuntimeMode::Boot:
+    case core::RuntimeMode::JoiningServer:
+    case core::RuntimeMode::Multiplayer:
+        return;
+    case core::RuntimeMode::Menu:
+        if (inputManager_.MenuDownPressed()) {
+            menuSelectionState_.MoveNext();
+        }
+        if (inputManager_.MenuUpPressed()) {
+            menuSelectionState_.MovePrevious();
+        }
+        if (inputManager_.MenuSelectPressed()) {
+            ActivateMenuAction(menuSelectionState_.SelectedAction());
+        }
+        return;
+    case core::RuntimeMode::StartingLocalServer:
+    case core::RuntimeMode::Singleplayer:
+    case core::RuntimeMode::Options:
+    case core::RuntimeMode::Disconnected:
+        if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed()) {
+            ReturnToMenu();
+        }
+        return;
+    }
+}
+
+void GameClient::ActivateMenuAction(core::MenuAction action) {
+    switch (action) {
+    case core::MenuAction::JoinServer:
+        runtimeStatusMessage_.clear();
+        runtimeState_.requestedJoin = true;
+        return;
+    case core::MenuAction::Quit:
+        exitRequested_ = true;
+        return;
+    case core::MenuAction::StartServer:
+        runtimeState_.mode = core::RuntimeMode::StartingLocalServer;
+        runtimeStatusMessage_ = "Dedicated local server launch is planned for the next slice";
+        return;
+    case core::MenuAction::Singleplayer:
+        runtimeState_.mode = core::RuntimeMode::Singleplayer;
+        runtimeStatusMessage_ = "Singleplayer runtime is planned for a later phase";
+        return;
+    case core::MenuAction::Options:
+        runtimeState_.mode = core::RuntimeMode::Options;
+        runtimeStatusMessage_ = "Options persistence is planned for a later phase";
+        return;
+    case core::MenuAction::None:
+        return;
+    }
+}
+
+bool GameClient::BeginJoinServer() {
+    if (connecting_ || connected_) {
+        return true;
+    }
+
+    runtimeStatusMessage_.clear();
+    disconnectReason_.clear();
+    runtimeState_.disconnectReason.clear();
+    runtimeState_.mode = core::RuntimeMode::JoiningServer;
+
+    if (!transport_.IsInitialized()) {
+        std::string error;
+        if (!transport_.Initialize(net::TransportConfig{.isServer = false, .debugVerbosity = 4, .allowUnencryptedDev = true},
+                                   error)) {
+            disconnectReason_ = "transport init failed: " + error;
+            std::fprintf(stderr, "[net.transport] client transport init failed: %s\n", error.c_str());
+            return false;
+        }
+    }
+
+    std::string error;
+    serverConnection_ = transport_.Connect(config_.serverHost, config_.serverPort, error);
+    if (serverConnection_ == net::kInvalidConnectionHandle) {
+        disconnectReason_ = "connect failed: " + error;
+        std::fprintf(stderr, "[net.transport] connect failed: %s\n", error.c_str());
+        return false;
+    }
+
+    connecting_ = true;
+    return true;
+}
+
+void GameClient::ReturnToMenu() {
+    disconnectReason_.clear();
+    runtimeState_.disconnectReason.clear();
+    runtimeStatusMessage_.clear();
+    runtimeState_.requestedJoin = false;
+    runtimeState_.mode = core::RuntimeMode::Menu;
 }
 
 void GameClient::HandleConnectionEvents() {
@@ -156,6 +280,7 @@ void GameClient::HandleConnectionEvents() {
         if (event.type == net::ConnectionEventType::Connected) {
             connected_ = true;
             connecting_ = false;
+            runtimeStatusMessage_.clear();
             OnConnectedToServer();
             continue;
         }
@@ -461,6 +586,7 @@ void GameClient::HandleDisconnectReason(const net::DisconnectReasonMessage& mess
 }
 
 void GameClient::ResetSessionState() {
+    connected_ = false;
     connecting_ = false;
     serverWelcomed_ = false;
     localPlayerId = {};
@@ -480,30 +606,43 @@ void GameClient::ResetSessionState() {
 
 void GameClient::RefreshRuntimeState() {
     runtimeState_.disconnectReason = disconnectReason_;
-
-    if (!disconnectReason_.empty() || (!connected_ && !connecting_)) {
+    if (!disconnectReason_.empty()) {
         runtimeState_.mode = core::RuntimeMode::Disconnected;
         return;
     }
 
-    runtimeState_.disconnectReason.clear();
-    runtimeState_.splashCompleted = true;
-
-    if (connecting_ || (connected_ && !serverWelcomed_)) {
-        runtimeState_.mode = core::RuntimeMode::JoiningServer;
+    switch (runtimeState_.mode) {
+    case core::RuntimeMode::Boot:
+        if (runtimeState_.splashCompleted) {
+            runtimeState_.mode = core::RuntimeMode::Menu;
+        }
+        return;
+    case core::RuntimeMode::Menu:
+        return;
+    case core::RuntimeMode::JoiningServer:
+        if (connected_ && serverWelcomed_) {
+            runtimeState_.mode = core::RuntimeMode::Multiplayer;
+        } else if (!connecting_ && !connected_) {
+            runtimeState_.mode = core::RuntimeMode::Menu;
+        }
+        return;
+    case core::RuntimeMode::Multiplayer:
+        if (!connected_) {
+            disconnectReason_ = "connection closed";
+            runtimeState_.disconnectReason = disconnectReason_;
+            runtimeState_.mode = core::RuntimeMode::Disconnected;
+        }
+        return;
+    case core::RuntimeMode::StartingLocalServer:
+    case core::RuntimeMode::Singleplayer:
+    case core::RuntimeMode::Options:
+    case core::RuntimeMode::Disconnected:
         return;
     }
-
-    if (connected_ && serverWelcomed_) {
-        runtimeState_.mode = core::RuntimeMode::Multiplayer;
-        return;
-    }
-
-    runtimeState_.mode = core::RuntimeMode::Menu;
 }
 
 void GameClient::StepSimulation() {
-    if (!connected_ || !serverWelcomed_ || !IsLocalPlayerReady()) {
+    if (runtimeState_.mode != core::RuntimeMode::Multiplayer || !connected_ || !serverWelcomed_ || !IsLocalPlayerReady()) {
         return;
     }
 
@@ -640,17 +779,26 @@ components::WorldRenderState GameClient::BuildWorldRenderState() const {
 
 components::NetworkDebugState GameClient::BuildDebugState() const {
     components::NetworkDebugState state;
-    state.sceneName = ComposeSceneLabel(sceneManager_.ActiveScene());
+    state.activeScene = sceneManager_.ActiveScene();
+    const std::string status = runtimeState_.mode == core::RuntimeMode::Disconnected ? disconnectReason_ : runtimeStatusMessage_;
+    state.sceneName = ComposeSceneLabel(state.activeScene, status);
     state.connecting = connecting_;
     state.connected = connected_;
     state.welcomed = serverWelcomed_;
     state.disconnectReason = disconnectReason_;
+    state.runtimeStatusMessage = runtimeStatusMessage_;
     state.clientTick = clientTick_;
     state.serverTick = latestServerTick_;
     state.pendingInputCount = pendingInputs_.size();
     state.loadedChunkCount = chunksByCoord_.size();
     state.chunkVersionConflicts = chunkVersionConflictCount_;
-    state.metrics = transport_.GetConnectionMetrics(serverConnection_);
+    if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
+        state.metrics = transport_.GetConnectionMetrics(serverConnection_);
+    }
+    for (const core::MenuAction action : menuSelectionState_.Actions()) {
+        state.menuActions.emplace_back(core::MenuActionName(action));
+    }
+    state.selectedMenuIndex = menuSelectionState_.SelectedIndex();
     return state;
 }
 

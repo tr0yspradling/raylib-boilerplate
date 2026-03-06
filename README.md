@@ -13,10 +13,12 @@ swap scenes, wire up systems, and prototype gameplay.
 
 ## Controls
 
-- `Space / Enter` – from the menu, jump into the sandbox scene.
-- `WASD` / arrow keys – pan the sandbox camera.
-- Mouse wheel – zoom the sandbox camera.
-- `Esc` – return to the menu.
+- `W/S` or arrow keys – menu navigation.
+- `Enter` / `Space` – menu select.
+- `Esc` – return from placeholder/disconnected screens.
+- `A/D` or arrows – move (multiplayer gameplay).
+- `Space` – jump (multiplayer gameplay).
+- `Tab` – toggle net debug overlay.
 
 ## Build
 
@@ -61,6 +63,13 @@ Single-config:
 
 ```bash
 ./build/debug/game_client
+```
+
+By default the client now boots into splash/menu and waits for a user menu selection before joining a server.
+For direct dev join flow:
+
+```bash
+./build/debug/game_client --auto-join --skip-splash
 ```
 
 Multi-config (Windows/MSVC):

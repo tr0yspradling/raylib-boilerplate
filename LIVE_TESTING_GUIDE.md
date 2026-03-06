@@ -16,19 +16,21 @@ For CLion/IDE builds, use the `debug` preset profile so generated files and targ
 
 ## Manual Test Pass
 
-1. **Menu Scene**
-   - App starts on the menu.
-   - Press `Space` or `Enter` and confirm the sandbox scene loads.
-2. **Sandbox Camera**
-   - `WASD` / arrow keys pan the view.
-   - Mouse wheel zooms in/out (clamped between 0.25–3.0).
-   - `Esc` returns to the menu without crashing or leaking.
-3. **ECS Animation**
-   - The colored tiles move/rotate smoothly.
-   - Pulse animation scales entities and resumes when returning from the menu.
-4. **Debug Overlay**
+1. **Startup Flow**
+   - App starts on splash, then transitions to main menu without connecting.
+   - `--skip-splash` starts directly at main menu.
+2. **Menu Navigation**
+   - `W/S` or arrows (or gamepad D-pad) changes selection.
+   - `Enter`/`Space` (or gamepad south button) activates selected action.
+3. **Join + Quit**
+   - Selecting `Join Server` begins connection flow.
+   - Selecting `Quit` exits cleanly.
+4. **Placeholder Routes**
+   - Selecting `Start Server`, `Singleplayer`, or `Options` shows placeholder messaging.
+   - `Enter` or `Esc` returns to main menu.
+5. **Debug Overlay**
    - Overlay text renders in the top-left corner.
-   - Scene name and FPS update every frame.
+   - Scene/state text updates as you switch splash/menu/join/placeholder states.
 
 ## Quick Commands
 

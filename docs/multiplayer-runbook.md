@@ -81,14 +81,22 @@ Client 2:
 ./build/debug/game_client --host 127.0.0.1 --port 27020 --name bob
 ```
 
+Direct auto-join (dev shortcut):
+```bash
+./build/debug/game_client --host 127.0.0.1 --port 27020 --name alice --auto-join --skip-splash
+```
+
 ## Controls
 - Move: `A/D` or arrows
 - Jump: `Space`
 - Toggle net debug overlay: `Tab`
+- Menu navigate: `W/S` or arrows (gamepad D-pad up/down)
+- Menu select: `Enter`/`Space` (gamepad south face button)
+- Return from placeholder/disconnected screens: `Enter` or `Esc`
 
 ## Smoke Test Checklist
 1. Start `game_server`.
-2. Start two clients and confirm both connect.
+2. Start two clients, navigate to `Join Server` in menu, and confirm both connect.
 3. Confirm each client sees both players moving.
 4. Confirm local movement remains responsive (prediction).
 5. Confirm remote movement is smoothed (interpolation).

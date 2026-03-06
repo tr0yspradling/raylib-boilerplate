@@ -39,6 +39,29 @@ public:
 
         jumpPressed_ = raylib::Keyboard::IsKeyPressed(KEY_SPACE) || raylib::Keyboard::IsKeyPressed(KEY_W) ||
             raylib::Keyboard::IsKeyPressed(KEY_UP);
+        menuUpPressed_ = raylib::Keyboard::IsKeyPressed(KEY_UP) || raylib::Keyboard::IsKeyPressed(KEY_W);
+        menuDownPressed_ = raylib::Keyboard::IsKeyPressed(KEY_DOWN) || raylib::Keyboard::IsKeyPressed(KEY_S);
+        menuSelectPressed_ = raylib::Keyboard::IsKeyPressed(KEY_ENTER) || raylib::Keyboard::IsKeyPressed(KEY_SPACE);
+        menuBackPressed_ = raylib::Keyboard::IsKeyPressed(KEY_ESCAPE);
+
+        for (int gamepad = 0; gamepad < 4; ++gamepad) {
+            if (!::IsGamepadAvailable(gamepad)) {
+                continue;
+            }
+
+            if (::IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_FACE_UP)) {
+                menuUpPressed_ = true;
+            }
+            if (::IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_FACE_DOWN)) {
+                menuDownPressed_ = true;
+            }
+            if (::IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+                menuSelectPressed_ = true;
+            }
+            if (::IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
+                menuBackPressed_ = true;
+            }
+        }
 
         debugOverlayToggled_ = raylib::Keyboard::IsKeyPressed(KEY_TAB);
         quitRequested_ = raylib::Window::ShouldClose();
@@ -66,12 +89,20 @@ public:
     [[nodiscard]] bool JumpPressed() const { return jumpPressed_; }
     [[nodiscard]] bool DebugOverlayToggled() const { return debugOverlayToggled_; }
     [[nodiscard]] bool QuitRequested() const { return quitRequested_; }
+    [[nodiscard]] bool MenuUpPressed() const { return menuUpPressed_; }
+    [[nodiscard]] bool MenuDownPressed() const { return menuDownPressed_; }
+    [[nodiscard]] bool MenuSelectPressed() const { return menuSelectPressed_; }
+    [[nodiscard]] bool MenuBackPressed() const { return menuBackPressed_; }
 
 private:
     float moveAxisX_ = 0.0f;
     bool jumpPressed_ = false;
     bool debugOverlayToggled_ = false;
     bool quitRequested_ = false;
+    bool menuUpPressed_ = false;
+    bool menuDownPressed_ = false;
+    bool menuSelectPressed_ = false;
+    bool menuBackPressed_ = false;
 };
 
 }  // namespace client::input

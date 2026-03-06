@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 namespace client::core {
 
@@ -14,6 +15,25 @@ enum class MenuAction : uint8_t {
     Options,
     Quit,
 };
+
+[[nodiscard]] inline std::string_view MenuActionName(MenuAction action) {
+    switch (action) {
+    case MenuAction::None:
+        return "None";
+    case MenuAction::StartServer:
+        return "Start Server";
+    case MenuAction::JoinServer:
+        return "Join Server";
+    case MenuAction::Singleplayer:
+        return "Singleplayer";
+    case MenuAction::Options:
+        return "Options";
+    case MenuAction::Quit:
+        return "Quit";
+    }
+
+    return "Unknown";
+}
 
 class MenuSelectionState {
 public:
