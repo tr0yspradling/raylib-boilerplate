@@ -27,7 +27,7 @@ struct ClientRuntimeModule {
             .kind(EnsureInputCapturePhase(world))
             .run([](flecs::iter& it) {
                 if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->CaptureInput();
+                    runtime->CaptureInput(it.world());
                 }
             });
 
@@ -35,7 +35,7 @@ struct ClientRuntimeModule {
             .kind(EnsureRuntimeIntentPhase(world))
             .run([](flecs::iter& it) {
                 if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->ProcessRuntimeIntent();
+                    runtime->ProcessRuntimeIntent(it.world());
                 }
             });
 
@@ -43,7 +43,7 @@ struct ClientRuntimeModule {
             .kind(EnsureUiBuildPhase(world))
             .run([](flecs::iter& it) {
                 if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->BuildUiState();
+                    runtime->BuildUiState(it.world());
                 }
             });
 
@@ -51,7 +51,7 @@ struct ClientRuntimeModule {
             .kind(EnsureUiInteractionPhase(world))
             .run([](flecs::iter& it) {
                 if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->HandleUiInteraction();
+                    runtime->HandleUiInteraction(it.world());
                 }
             });
 
@@ -67,7 +67,7 @@ struct ClientRuntimeModule {
             .kind(EnsureSessionUpdatePhase(world))
             .run([](flecs::iter& it) {
                 if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->RefreshSessionState();
+                    runtime->RefreshSessionState(it.world());
                 }
             });
 

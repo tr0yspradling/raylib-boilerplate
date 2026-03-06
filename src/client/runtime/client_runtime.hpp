@@ -20,6 +20,8 @@
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
 #include "client/systems/render_system.hpp"
+#include "client/ui/ui_document.hpp"
+#include "client/ui/ui_state.hpp"
 #include "shared/game/chunk.hpp"
 #include "shared/game/entity.hpp"
 #include "shared/game/fixed_step.hpp"
@@ -38,15 +40,15 @@ class ClientRuntime {
 public:
     explicit ClientRuntime(ClientConfig config);
 
-    [[nodiscard]] bool Initialize();
+    [[nodiscard]] bool Initialize(flecs::world world);
     void Shutdown();
 
-    void CaptureInput();
-    void ProcessRuntimeIntent();
-    void BuildUiState();
-    void HandleUiInteraction();
+    void CaptureInput(flecs::world world);
+    void ProcessRuntimeIntent(flecs::world world);
+    void BuildUiState(flecs::world world);
+    void HandleUiInteraction(flecs::world world);
     void PollTransport();
-    void RefreshSessionState();
+    void RefreshSessionState(flecs::world world);
     void AdvancePrediction(float frameSeconds);
     void PublishPresentation(flecs::world world, float frameSeconds);
     void RenderPublishedFrame(const flecs::world& world);
@@ -68,13 +70,23 @@ private:
 
     void HandleConnectionEvents();
     void HandleIncomingPackets();
-    void HandleRuntimeInput();
-    void HandleJoinFormInput();
-    void CaptureJoinFormTextInput();
-    void ActivateMenuAction(core::MenuAction action);
-    bool BeginJoinServer();
-    bool ApplyJoinFormToConfig();
-    void ReturnToMenu();
+    void ConsumeUiCommands(flecs::world world);
+    void HandlePlaceholderScreenInput(flecs::world world);
+    void HandleUiPointerFocus(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
+    void HandleMenuInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
+    void HandleJoinFormInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
+    void ApplyJoinFormTextInput(ui::JoinServerScreenState& joinScreenState, const ui::UiInputState& inputState) const;
+    void ActivateMenuAction(flecs::world world, core::MenuAction action);
+    bool BeginJoinServer(flecs::world world);
+    bool ApplyJoinFormToConfig(const ui::JoinServerScreenState& joinScreenState);
+    void ReturnToMenu(flecs::world world);
+    void PublishScreenState(flecs::world world);
+    [[nodiscard]] ui::UiDocument BuildMenuDocument(const ui::ScreenState& screenState,
+                                                   const ui::MenuScreenState& menuScreenState,
+                                                   const ui::UiInteractionState& interactionState) const;
+    [[nodiscard]] ui::UiDocument BuildJoinDocument(const ui::ScreenState& screenState,
+                                                   const ui::JoinServerScreenState& joinScreenState,
+                                                   const ui::UiInteractionState& interactionState) const;
 
     void OnConnectedToServer();
 
@@ -97,7 +109,6 @@ private:
     void RequestChunkResync(const game::ChunkCoord& coord, uint32_t clientVersion);
     void ReconcileFromSnapshot(const net::SnapshotEntity& localEntity);
 
-    void DrawFrame(float frameSeconds);
     [[nodiscard]] components::WorldRenderState BuildWorldRenderState() const;
     [[nodiscard]] components::NetworkDebugState BuildDebugState() const;
 
@@ -121,8 +132,6 @@ private:
     game::FixedStep fixedStep_;
     core::SceneManager sceneManager_{};
     core::RuntimeState runtimeState_{};
-    core::MenuSelectionState menuSelectionState_{};
-    core::JoinServerFormState joinFormState_{};
     input::InputManager inputManager_{};
     game::TickId clientTick_ = 0;
     game::TickId latestServerTick_ = 0;

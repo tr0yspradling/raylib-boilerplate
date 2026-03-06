@@ -38,6 +38,7 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
   - `Persistence`
   - `Metrics`
 - Current implementation keeps most business logic inside the runtime service classes while phase ordering and composition are handled by flecs. Deeper state decomposition into ECS resources/components is a planned follow-up.
+- Menu/join screen state, input snapshots, UI interaction state, and queued UI commands now live as flecs-managed resources on the client world.
 
 ## Authority Model
 - Server owns gameplay truth (`GameState` in `src/shared/game/game_state.hpp`).
@@ -105,12 +106,12 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - `src/client/modules/`: client flecs phase declarations and runtime module registration.
 - `src/client/runtime/`: heavyweight client runtime behavior, still transitional while state is decomposed further.
 - `src/client/components/`: render/debug presentation state published into the client world.
-- `src/client/core/`: transitional runtime state, menu model, and scene mapping.
+- `src/client/core/`: transitional runtime state, command enums, and scene mapping.
 - `src/client/input/`: input capture producing shared input frames.
 - `src/client/physics/`: prediction/reconciliation helpers on shared sim.
 - `src/client/scenes/`: scene captions and metadata still used by current presentation flow.
 - `src/client/systems/`: current renderer and related presentation helpers.
-- `src/client/ui/`: multiplayer debug overlay helpers.
+- `src/client/ui/`: debug overlay, UI state/document resources, and UI rendering helpers.
 - `src/server/app/`: `ServerApp` composition root and process loop.
 - `src/server/modules/`: server flecs phase declarations and runtime module registration.
 - `src/server/runtime/`: heavyweight authoritative server runtime behavior, still transitional while services are decomposed further.
@@ -119,6 +120,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 ## Validation Coverage
 - Existing gameplay/network tests still cover serializer, send policy, fixed step, menu/join state, and runtime scene transitions.
 - New world-level tests verify flecs phase ordering for both client and server runtimes.
+- UI state/document tests now cover menu state, join-form state, and document hit-testing/focus traversal helpers.
 
 ## Persistence and Security Status
 Implemented foundations:

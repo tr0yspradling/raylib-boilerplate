@@ -1,19 +1,20 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
-#include <string>
 
 #include <raylib-cpp.hpp>
 
 #include "client/components/components.hpp"
 #include "client/ui/debug_overlay.hpp"
+#include "client/ui/ui_document.hpp"
+#include "client/ui/ui_renderer.hpp"
 
 namespace client::systems {
 
 class RenderSystem {
 public:
-    static void DrawFrame(const components::WorldRenderState& world, const components::NetworkDebugState& debug,
+    static void DrawFrame(const components::WorldRenderState& world, const ui::UiDocument& document,
+                          const components::NetworkDebugState& debug,
                           bool showDebugOverlay) {
         const int width = raylib::Window::GetWidth();
         const int height = raylib::Window::GetHeight();
@@ -25,10 +26,8 @@ public:
             DrawSplash(width, height);
             break;
         case core::SceneKind::MainMenu:
-            DrawMenu(debug, width, height);
-            break;
         case core::SceneKind::JoinServer:
-            DrawJoinForm(debug, width, height);
+            ui::UiRenderer::Draw(document, width, height);
             break;
         case core::SceneKind::Connecting:
             DrawCenteredStatus("Joining Dedicated Server",
@@ -87,71 +86,9 @@ private:
                                                    20);
     }
 
-    static void DrawMenu(const components::NetworkDebugState& debug, int width, int height) {
-        raylib::Color{238, 246, 255, 255}.DrawText("Main Menu", width / 2 - 120, 120, 56);
-        raylib::Color{168, 194, 214, 255}.DrawText("Select runtime mode", width / 2 - 104, 182, 24);
-
-        int menuY = 260;
-        for (size_t i = 0; i < debug.menuActions.size(); ++i) {
-            const bool selected = i == debug.selectedMenuIndex;
-            const raylib::Color textColor = selected ? raylib::Color{32, 52, 72, 255} : raylib::Color{214, 228, 240, 255};
-            const raylib::Color itemColor = selected ? raylib::Color{118, 198, 255, 255} : raylib::Color{46, 62, 78, 255};
-
-            DrawRectangleRounded({static_cast<float>(width / 2 - 210), static_cast<float>(menuY - 6), 420.0f, 44.0f},
-                                 0.22f, 12, itemColor);
-            textColor.DrawText(debug.menuActions[i].c_str(), width / 2 - 180, menuY, 28);
-            menuY += 56;
-        }
-
-        if (!debug.runtimeStatusMessage.empty()) {
-            raylib::Color{255, 209, 140, 255}.DrawText(debug.runtimeStatusMessage.c_str(), width / 2 - 300, menuY + 8, 20);
-        }
-
-        raylib::Color{168, 196, 214, 255}.DrawText("Navigate: W/S or Up/Down | Select: Enter/Space (A)", width / 2 - 260,
-                                                   height - 62, 20);
-    }
-
     static void DrawCenteredStatus(const char* title, const char* subtitle, int width, int height) {
         raylib::Color{236, 246, 255, 255}.DrawText(title, width / 2 - 220, height / 2 - 34, 46);
         raylib::Color{184, 208, 226, 255}.DrawText(subtitle, width / 2 - 260, height / 2 + 22, 24);
-    }
-
-    static void DrawJoinForm(const components::NetworkDebugState& debug, int width, int height) {
-        raylib::Color{238, 246, 255, 255}.DrawText("Join Server", width / 2 - 126, 112, 56);
-        raylib::Color{168, 194, 214, 255}.DrawText("Configure host, port, and player name", width / 2 - 190, 176, 24);
-
-        std::array<std::string, 5> rows{
-            "Host: " + (debug.joinHost.empty() ? std::string{"<required>"} : debug.joinHost),
-            "Port: " + (debug.joinPort.empty() ? std::string{"<required>"} : debug.joinPort),
-            "Name: " + (debug.joinPlayerName.empty() ? std::string{"<required>"} : debug.joinPlayerName),
-            "Connect",
-            "Back",
-        };
-
-        if (debug.joinEditing && debug.selectedJoinFieldIndex < 3U) {
-            rows[debug.selectedJoinFieldIndex] += "_";
-        }
-
-        int rowY = 250;
-        for (size_t i = 0; i < rows.size(); ++i) {
-            const bool selected = i == debug.selectedJoinFieldIndex;
-            const raylib::Color textColor = selected ? raylib::Color{32, 52, 72, 255} : raylib::Color{214, 228, 240, 255};
-            const raylib::Color itemColor = selected ? raylib::Color{118, 198, 255, 255} : raylib::Color{46, 62, 78, 255};
-
-            DrawRectangleRounded({static_cast<float>(width / 2 - 260), static_cast<float>(rowY - 6), 520.0f, 44.0f}, 0.22f,
-                                 12, itemColor);
-            textColor.DrawText(rows[i].c_str(), width / 2 - 230, rowY, 28);
-            rowY += 56;
-        }
-
-        if (!debug.runtimeStatusMessage.empty()) {
-            raylib::Color{255, 209, 140, 255}.DrawText(debug.runtimeStatusMessage.c_str(), width / 2 - 300, rowY + 8, 20);
-        }
-
-        const char* controls = debug.joinEditing
-            ? "Editing: type text, Backspace to erase, Enter/Esc to finish"
-            : "Navigate: W/S or Up/Down | Select: Enter/Space (A) | Back: Esc (B)";
-        raylib::Color{168, 196, 214, 255}.DrawText(controls, width / 2 - 330, height - 62, 20);
     }
 
     static void DrawGameplay(const components::WorldRenderState& world, int width, int height) {

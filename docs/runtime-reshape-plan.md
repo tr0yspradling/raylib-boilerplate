@@ -37,6 +37,11 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - `GameClient` / `GameServer` are now thin shells over dedicated app/runtime services
   - shared deterministic sim remains non-ECS for this program
   - explicit world-level tests validate client/server phase ordering
+- Phase 4 UI/document slice is complete:
+  - menu/join screen state now lives in flecs-managed UI resources
+  - `UiBuild` and `UiInteraction` phases now produce/consume a real `UiDocument`
+  - keyboard/gamepad navigation now has mouse hover/click parity for those screens
+  - menu/join rendering is delegated through a dedicated UI renderer path
 
 ## Target Runtime Shape
 
@@ -139,10 +144,14 @@ Goal: make flecs the active runtime architecture for both client and server befo
   - client/server phase registration modules exist and are wired into the primary binaries
   - heavyweight runtime logic moved into dedicated runtime service classes
   - phase ordering tests were added for both worlds
+- UI/document slice completed:
+  - menu/join screen state moved into flecs-managed resources
+  - `UiBuild`/`UiInteraction` phases now do real work
+  - menu/join rendering now consumes a `UiDocument` through `UiRenderer`
 - Remaining Phase 4 work:
-  - move screen/runtime state into explicit flecs resources/components
-  - redesign menu/UI interaction around a document/widget model
-  - split the current render system into presentation-specific modules
+  - move more runtime/session state into explicit flecs resources/components
+  - split gameplay/status/debug rendering into presentation-specific modules
+  - continue removing the transitional `RuntimeState + SceneManager` layer
 
 ### Changes
 - Introduce `ClientApp` / `ServerApp` composition roots backed by `flecs::world`.

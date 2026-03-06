@@ -3,8 +3,8 @@
 Last updated: 2026-03-06
 
 ## Current Focus
-- Phase 4 flecs runtime foundation on top of the existing menu/join multiplayer flow.
-- Preserving current behavior while moving the active client/server entrypoints onto flecs composition roots.
+- Phase 4 UI/document decomposition on top of the flecs runtime foundation.
+- Moving menu/join screen state and interaction into flecs-managed resources while preserving the multiplayer loop.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -47,19 +47,26 @@ Last updated: 2026-03-06
   - added explicit client/server flecs phase registration modules
   - promoted flecs to the main client/server build path
   - added world-level pipeline ordering tests for both runtimes
+- Implemented the Phase 4 UI/document slice:
+  - added flecs-managed UI resources for active client screen state, menu state, join-form state, input snapshots, interaction state, and queued UI commands
+  - replaced the old runtime-owned menu/join state structs with `UiDocument`-based menu/join building in the `UiBuild` phase
+  - added mouse hover/click support alongside existing keyboard/gamepad navigation
+  - delegated menu/join rendering to a dedicated `UiRenderer`
+  - added `test_sim_ui_document` and updated menu/join state tests around the new UI model
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`13/13`).
+- Tests: `ctest --preset debug` passing (`14/14`).
 - Runtime sanity: `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15` starts successfully.
-- Manual GUI smoke: not run for the new client/runtime path in this slice.
+- Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully.
+- Manual GUI smoke: not run for the new interactive menu/join path in this slice.
 
 ## Open Risks / Gaps
-- Client screen state still depends on transitional `RuntimeState` + `SceneManager` internals behind the new flecs shell.
-- `menu_model` and input/UI handling still need the planned widget/document redesign for mouse hover/click parity.
-- `render_system` is still monolithic and needs to be split into UI, world, and debug presentation modules.
+- Client runtime flow still depends on transitional `RuntimeState` + `SceneManager` internals behind the flecs shell.
+- Transport/session state and most orchestration logic still live inside `ClientRuntime`.
+- `render_system` is only partially decomposed: menu/join rendering now goes through `UiRenderer`, but gameplay/status/debug presentation still need dedicated modules.
 - `Start Server`, `Singleplayer`, and `Options` remain placeholders (no real runtime flows yet).
 - Post-multiplayer disconnect reason retention after returning to menu is still pending.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
@@ -72,6 +79,6 @@ Last updated: 2026-03-06
 
 ## Next Recommended Step
 - Continue Phase 4 with state decomposition inside the flecs worlds:
-  - move active screen/runtime state into explicit flecs resources/components
-  - replace the current menu model with a UI document/widget interaction layer
-  - split presentation/render work out of the monolithic render system
+  - move more of the active runtime flow out of `ClientRuntime` and into explicit flecs resources/services
+  - split gameplay/status/debug presentation into dedicated render/presentation modules
+  - start wiring the real `Start Server`, `Singleplayer`, and `Options` flows on top of the new UI state model

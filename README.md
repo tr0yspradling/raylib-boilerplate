@@ -15,6 +15,7 @@ simulation stays plain deterministic C++ under `src/shared/game/`.
 
 - `W/S` or arrow keys – menu navigation.
 - `Enter` / `Space` – menu select.
+- Left mouse – menu/join hover + click.
 - `Esc` – menu back / cancel join.
 - `Esc` – return from placeholder/disconnected screens.
 - `A/D` or arrows – move (multiplayer gameplay).
@@ -143,4 +144,5 @@ cmake -S . -B build `
 - `src/client/app/` and `src/server/app/` contain the flecs composition roots.
 - `src/client/modules/` and `src/server/modules/` define explicit runtime phase ordering.
 - `src/client/runtime/` and `src/server/runtime/` currently hold the transitional heavyweight runtime logic.
-- Menu/UI and rendering decomposition are still in progress; the current menu stack is functional but not the final design.
+- `src/client/ui/` now contains flecs-managed menu/join UI resources, a `UiDocument`, and a dedicated UI renderer.
+- Menu/UI and rendering decomposition are still in progress; gameplay/status/debug presentation is not on the final structure yet.

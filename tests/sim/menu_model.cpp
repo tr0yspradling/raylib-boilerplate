@@ -1,32 +1,35 @@
 #include <cassert>
 
 #include "client/core/menu_model.hpp"
+#include "client/ui/ui_state.hpp"
 
 int main() {
-    using namespace client::core;
+    using namespace client;
 
-    MenuSelectionState selection;
+    ui::MenuScreenState selection;
     assert(selection.SelectedIndex() == 0);
-    assert(selection.SelectedAction() == MenuAction::StartServer);
+    assert(selection.SelectedAction() == core::MenuAction::StartServer);
 
     selection.MovePrevious();
     assert(selection.SelectedIndex() == 4);
-    assert(selection.SelectedAction() == MenuAction::Quit);
+    assert(selection.SelectedAction() == core::MenuAction::Quit);
 
     selection.MoveNext();
     assert(selection.SelectedIndex() == 0);
 
     selection.SetSelectedIndex(2);
-    assert(selection.SelectedAction() == MenuAction::Singleplayer);
+    assert(selection.SelectedAction() == core::MenuAction::Singleplayer);
 
     selection.SetSelectedIndex(99);
     assert(selection.SelectedIndex() == 2);
 
-    assert(MenuActionName(MenuAction::StartServer) == "Start Server");
-    assert(MenuActionName(MenuAction::JoinServer) == "Join Server");
-    assert(MenuActionName(MenuAction::Singleplayer) == "Singleplayer");
-    assert(MenuActionName(MenuAction::Options) == "Options");
-    assert(MenuActionName(MenuAction::Quit) == "Quit");
+    assert(core::MenuActionName(core::MenuAction::StartServer) == "Start Server");
+    assert(core::MenuActionName(core::MenuAction::JoinServer) == "Join Server");
+    assert(core::MenuActionName(core::MenuAction::Singleplayer) == "Singleplayer");
+    assert(core::MenuActionName(core::MenuAction::Options) == "Options");
+    assert(core::MenuActionName(core::MenuAction::Quit) == "Quit");
+    assert(ui::UiWidgetIdForMenuAction(core::MenuAction::JoinServer) == ui::UiWidgetId::MenuJoinServer);
+    assert(ui::MenuActionForWidgetId(ui::UiWidgetId::MenuQuit) == core::MenuAction::Quit);
 
     return 0;
 }

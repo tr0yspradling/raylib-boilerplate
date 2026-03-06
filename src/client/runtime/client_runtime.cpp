@@ -23,6 +23,12 @@ namespace client {
 namespace {
 
 constexpr std::chrono::milliseconds kSplashDuration{1400};
+constexpr float kMenuWidth = 420.0f;
+constexpr float kJoinWidth = 520.0f;
+constexpr float kRowHeight = 44.0f;
+constexpr float kRowSpacing = 56.0f;
+constexpr float kMenuStartY = 254.0f;
+constexpr float kJoinStartY = 244.0f;
 
 [[nodiscard]] std::string ComposeSceneLabel(core::SceneKind sceneKind, std::string_view statusMessage) {
     switch (sceneKind) {
@@ -79,7 +85,7 @@ ClientRuntime::ClientRuntime(ClientConfig config)
     serverTickRateHz_ = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
 }
 
-bool ClientRuntime::Initialize() {
+bool ClientRuntime::Initialize(flecs::world world) {
     window_.emplace(config_.windowWidth, config_.windowHeight, "raylib boilerplate - multiplayer client");
     window_->SetTargetFPS(config_.targetFps);
 
@@ -89,9 +95,16 @@ bool ClientRuntime::Initialize() {
     runtimeState_.disconnectReason.clear();
     runtimeState_.joiningInProgress = false;
     runtimeStatusMessage_.clear();
-    joinFormState_.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
     splashStartedAt_ = std::chrono::steady_clock::now();
     sceneManager_.SwitchTo(runtimeState_.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
+    ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
+    joinScreenState.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
+    world.set<ui::MenuScreenState>({});
+    world.set<ui::UiInteractionState>({});
+    world.set<ui::UiCommandQueue>({});
+    world.set<ui::UiDocument>({});
+    world.set<ui::UiInputState>({});
+    PublishScreenState(world);
     return true;
 }
 
@@ -104,7 +117,7 @@ void ClientRuntime::Shutdown() {
     }
 }
 
-void ClientRuntime::CaptureInput() {
+void ClientRuntime::CaptureInput(flecs::world world) {
     inputManager_.Update();
     if (inputManager_.DebugOverlayToggled()) {
         debugOverlayEnabled_ = !debugOverlayEnabled_;
@@ -112,28 +125,79 @@ void ClientRuntime::CaptureInput() {
     if (inputManager_.QuitRequested()) {
         exitRequested_ = true;
     }
+    world.set<ui::UiInputState>(inputManager_.BuildUiInputState());
 }
 
-void ClientRuntime::ProcessRuntimeIntent() {
+void ClientRuntime::ProcessRuntimeIntent(flecs::world world) {
     const auto now = std::chrono::steady_clock::now();
     if (!runtimeState_.splashCompleted) {
-        if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed() ||
+        if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed() || inputManager_.MousePrimaryPressed() ||
             std::chrono::duration_cast<std::chrono::milliseconds>(now - splashStartedAt_) >= kSplashDuration) {
             runtimeState_.splashCompleted = true;
         }
     }
 
     RefreshRuntimeState();
-    HandleRuntimeInput();
+    ConsumeUiCommands(world);
+    HandlePlaceholderScreenInput(world);
     if (runtimeState_.mode == core::RuntimeMode::Menu && runtimeState_.requestedJoin) {
         runtimeState_.requestedJoin = false;
-        BeginJoinServer();
+        BeginJoinServer(world);
     }
+    PublishScreenState(world);
 }
 
-void ClientRuntime::BuildUiState() {}
+void ClientRuntime::BuildUiState(flecs::world world) {
+    PublishScreenState(world);
 
-void ClientRuntime::HandleUiInteraction() {}
+    const ui::ScreenState& screenState = world.get<ui::ScreenState>();
+    const ui::MenuScreenState& menuScreenState = world.get<ui::MenuScreenState>();
+    const ui::JoinServerScreenState& joinScreenState = world.get<ui::JoinServerScreenState>();
+    ui::UiInteractionState& interactionState = world.get_mut<ui::UiInteractionState>();
+
+    ui::UiDocument document;
+    if (screenState.activeScene == core::SceneKind::MainMenu) {
+        if (!interactionState.focusedWidget.has_value()) {
+            interactionState.focusedWidget = ui::UiWidgetIdForMenuAction(menuScreenState.SelectedAction());
+        }
+        document = BuildMenuDocument(screenState, menuScreenState, interactionState);
+    } else if (screenState.activeScene == core::SceneKind::JoinServer && !screenState.joiningInProgress) {
+        if (!interactionState.focusedWidget.has_value()) {
+            interactionState.focusedWidget = ui::UiWidgetIdForJoinField(joinScreenState.SelectedField());
+        }
+        document = BuildJoinDocument(screenState, joinScreenState, interactionState);
+    } else {
+        interactionState.hoveredWidget.reset();
+        interactionState.pressedWidget.reset();
+        document.scene = screenState.activeScene;
+    }
+
+    world.set<ui::UiDocument>(std::move(document));
+}
+
+void ClientRuntime::HandleUiInteraction(flecs::world world) {
+    const ui::ScreenState& screenState = world.get<ui::ScreenState>();
+    const ui::UiInputState& inputState = world.get<ui::UiInputState>();
+    const ui::UiDocument& document = world.get<ui::UiDocument>();
+
+    if (document.widgets.empty()) {
+        ui::UiInteractionState& interactionState = world.get_mut<ui::UiInteractionState>();
+        interactionState.hoveredWidget.reset();
+        interactionState.pressedWidget.reset();
+        return;
+    }
+
+    HandleUiPointerFocus(world, document, inputState);
+
+    if (screenState.activeScene == core::SceneKind::MainMenu) {
+        HandleMenuInteraction(world, document, inputState);
+        return;
+    }
+
+    if (screenState.activeScene == core::SceneKind::JoinServer && !screenState.joiningInProgress) {
+        HandleJoinFormInteraction(world, document, inputState);
+    }
+}
 
 void ClientRuntime::PollTransport() {
     if (!transport_.IsInitialized()) {
@@ -145,7 +209,10 @@ void ClientRuntime::PollTransport() {
     HandleIncomingPackets();
 }
 
-void ClientRuntime::RefreshSessionState() { RefreshRuntimeState(); }
+void ClientRuntime::RefreshSessionState(flecs::world world) {
+    RefreshRuntimeState();
+    PublishScreenState(world);
+}
 
 void ClientRuntime::AdvancePrediction(float frameSeconds) {
     const int simSteps = fixedStep_.Accumulate(frameSeconds);
@@ -184,6 +251,7 @@ void ClientRuntime::PublishPresentation(flecs::world world, float frameSeconds) 
         lastChunkHintSentAt_ = now;
     }
 
+    PublishScreenState(world);
     world.set<components::WorldRenderState>(BuildWorldRenderState());
     world.set<components::NetworkDebugState>(BuildDebugState());
 }
@@ -194,10 +262,11 @@ void ClientRuntime::RenderPublishedFrame(const flecs::world& world) {
     }
 
     const components::WorldRenderState& worldState = world.get<components::WorldRenderState>();
+    const ui::UiDocument& document = world.get<ui::UiDocument>();
     const components::NetworkDebugState& debugState = world.get<components::NetworkDebugState>();
 
     window_->BeginDrawing();
-    systems::RenderSystem::DrawFrame(worldState, debugState, debugOverlayEnabled_);
+    systems::RenderSystem::DrawFrame(worldState, document, debugState, debugOverlayEnabled_);
     window_->EndDrawing();
 }
 
@@ -205,33 +274,19 @@ bool ClientRuntime::ShouldExit() const {
     return exitRequested_ || !window_.has_value() || raylib::Window::ShouldClose();
 }
 
-void ClientRuntime::HandleRuntimeInput() {
+void ClientRuntime::HandlePlaceholderScreenInput(flecs::world world) {
     switch (runtimeState_.mode) {
     case core::RuntimeMode::Boot:
     case core::RuntimeMode::Multiplayer:
+    case core::RuntimeMode::Menu:
         return;
     case core::RuntimeMode::JoiningServer:
-        if (runtimeState_.joiningInProgress) {
-            if (inputManager_.MenuBackPressed()) {
-                if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
-                    transport_.Close(serverConnection_, 0, "join canceled", false);
-                }
-                ResetSessionState();
-                ReturnToMenu();
+        if (runtimeState_.joiningInProgress && inputManager_.MenuBackPressed()) {
+            if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
+                transport_.Close(serverConnection_, 0, "join canceled", false);
             }
-            return;
-        }
-        HandleJoinFormInput();
-        return;
-    case core::RuntimeMode::Menu:
-        if (inputManager_.MenuDownPressed()) {
-            menuSelectionState_.MoveNext();
-        }
-        if (inputManager_.MenuUpPressed()) {
-            menuSelectionState_.MovePrevious();
-        }
-        if (inputManager_.MenuSelectPressed()) {
-            ActivateMenuAction(menuSelectionState_.SelectedAction());
+            ResetSessionState();
+            ReturnToMenu(world);
         }
         return;
     case core::RuntimeMode::StartingLocalServer:
@@ -239,136 +294,274 @@ void ClientRuntime::HandleRuntimeInput() {
     case core::RuntimeMode::Options:
     case core::RuntimeMode::Disconnected:
         if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed()) {
-            ReturnToMenu();
+            ReturnToMenu(world);
         }
         return;
     }
 }
 
-void ClientRuntime::HandleJoinFormInput() {
-    if (joinFormState_.editing) {
-        CaptureJoinFormTextInput();
-        if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed()) {
-            joinFormState_.editing = false;
+void ClientRuntime::ConsumeUiCommands(flecs::world world) {
+    ui::UiCommandQueue& commandQueue = world.get_mut<ui::UiCommandQueue>();
+    ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
+    ui::UiInteractionState& interactionState = world.get_mut<ui::UiInteractionState>();
+
+    for (const ui::UiCommand& command : commandQueue.commands) {
+        switch (command.type) {
+        case ui::UiCommandType::ActivateMenuAction:
+            ActivateMenuAction(world, command.menuAction);
+            break;
+        case ui::UiCommandType::StartJoinFieldEdit:
+            joinScreenState.editing = true;
+            runtimeStatusMessage_ = "Editing field. Type, Backspace to erase, Enter/Esc to finish";
+            interactionState.focusedWidget = ui::UiWidgetIdForJoinField(command.joinField);
+            break;
+        case ui::UiCommandType::StopJoinFieldEdit:
+            joinScreenState.editing = false;
             runtimeStatusMessage_.clear();
+            break;
+        case ui::UiCommandType::SubmitJoin:
+            if (!ApplyJoinFormToConfig(joinScreenState)) {
+                break;
+            }
+            runtimeStatusMessage_.clear();
+            BeginJoinServer(world);
+            break;
+        case ui::UiCommandType::BackToMenu:
+            ReturnToMenu(world);
+            break;
+        case ui::UiCommandType::None:
+            break;
         }
-        return;
     }
 
-    if (inputManager_.MenuDownPressed()) {
-        joinFormState_.MoveNext();
-    }
-    if (inputManager_.MenuUpPressed()) {
-        joinFormState_.MovePrevious();
-    }
-
-    if (inputManager_.MenuBackPressed()) {
-        ReturnToMenu();
-        return;
-    }
-
-    if (!inputManager_.MenuSelectPressed()) {
-        return;
-    }
-
-    switch (joinFormState_.SelectedField()) {
-    case core::JoinFormField::Host:
-    case core::JoinFormField::Port:
-    case core::JoinFormField::Name:
-        joinFormState_.editing = true;
-        runtimeStatusMessage_ = "Editing field. Type, Backspace to erase, Enter/Esc to finish";
-        return;
-    case core::JoinFormField::Connect:
-        if (!ApplyJoinFormToConfig()) {
-            return;
-        }
-        runtimeStatusMessage_.clear();
-        BeginJoinServer();
-        return;
-    case core::JoinFormField::Back:
-        ReturnToMenu();
-        return;
-    }
+    commandQueue.Clear();
 }
 
-void ClientRuntime::CaptureJoinFormTextInput() {
-    std::string* target = nullptr;
-    const core::JoinFormField field = joinFormState_.SelectedField();
-    switch (field) {
-    case core::JoinFormField::Host:
-        target = &joinFormState_.host;
-        break;
-    case core::JoinFormField::Port:
-        target = &joinFormState_.port;
-        break;
-    case core::JoinFormField::Name:
-        target = &joinFormState_.playerName;
-        break;
-    case core::JoinFormField::Connect:
-    case core::JoinFormField::Back:
+void ClientRuntime::HandleUiPointerFocus(flecs::world world, const ui::UiDocument& document,
+                                         const ui::UiInputState& inputState) {
+    ui::UiInteractionState& interactionState = world.get_mut<ui::UiInteractionState>();
+    const std::optional<ui::UiWidgetId> hoveredWidget = document.FindWidgetAt(inputState.mouseX, inputState.mouseY);
+    interactionState.hoveredWidget = hoveredWidget;
+
+    if (!hoveredWidget.has_value() || !inputState.mouseMoved) {
         return;
     }
 
-    int codepoint = GetCharPressed();
-    while (codepoint > 0) {
-        if (codepoint >= 32 && codepoint <= 126) {
-            const char character = static_cast<char>(codepoint);
-            if (field == core::JoinFormField::Port) {
-                if (character >= '0' && character <= '9' && target->size() < 5U) {
-                    target->push_back(character);
-                }
-            } else {
-                const size_t maxSize = field == core::JoinFormField::Host ? 64U : 24U;
-                if (target->size() < maxSize) {
-                    target->push_back(character);
-                }
+    const ui::ScreenState& screenState = world.get<ui::ScreenState>();
+    if (screenState.activeScene == core::SceneKind::JoinServer &&
+        world.get<ui::JoinServerScreenState>().editing) {
+        return;
+    }
+
+    interactionState.focusedWidget = hoveredWidget;
+    if (const core::MenuAction action = ui::MenuActionForWidgetId(*hoveredWidget); action != core::MenuAction::None) {
+        ui::MenuScreenState& menuScreenState = world.get_mut<ui::MenuScreenState>();
+        const auto& actions = menuScreenState.Actions();
+        for (size_t index = 0; index < actions.size(); ++index) {
+            if (actions[index] == action) {
+                menuScreenState.SetSelectedIndex(index);
+                break;
             }
         }
-
-        codepoint = GetCharPressed();
+        return;
     }
 
-    if (raylib::Keyboard::IsKeyPressed(KEY_BACKSPACE) && !target->empty()) {
+    const core::JoinFormField field = ui::JoinFieldForWidgetId(*hoveredWidget);
+    ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
+    const auto& fields = ui::JoinServerScreenState::kFields;
+    for (size_t index = 0; index < fields.size(); ++index) {
+        if (fields[index] == field) {
+            joinScreenState.SetSelectedIndex(index);
+            break;
+        }
+    }
+}
+
+void ClientRuntime::HandleMenuInteraction(flecs::world world, const ui::UiDocument& document,
+                                          const ui::UiInputState& inputState) {
+    ui::MenuScreenState& menuScreenState = world.get_mut<ui::MenuScreenState>();
+    ui::UiInteractionState& interactionState = world.get_mut<ui::UiInteractionState>();
+    ui::UiCommandQueue& commandQueue = world.get_mut<ui::UiCommandQueue>();
+    interactionState.pressedWidget.reset();
+
+    if (inputState.navigateDownPressed) {
+        menuScreenState.MoveNext();
+        interactionState.focusedWidget = ui::UiWidgetIdForMenuAction(menuScreenState.SelectedAction());
+    }
+    if (inputState.navigateUpPressed) {
+        menuScreenState.MovePrevious();
+        interactionState.focusedWidget = ui::UiWidgetIdForMenuAction(menuScreenState.SelectedAction());
+    }
+
+    std::optional<ui::UiWidgetId> activateWidget;
+    if (inputState.primaryPressed && interactionState.hoveredWidget.has_value()) {
+        activateWidget = interactionState.hoveredWidget;
+    } else if (inputState.acceptPressed) {
+        activateWidget = interactionState.focusedWidget;
+    }
+
+    if (!activateWidget.has_value()) {
+        return;
+    }
+
+    const core::MenuAction action = ui::MenuActionForWidgetId(*activateWidget);
+    if (action == core::MenuAction::None) {
+        return;
+    }
+
+    interactionState.pressedWidget = activateWidget;
+    commandQueue.Push({
+        .type = ui::UiCommandType::ActivateMenuAction,
+        .menuAction = action,
+    });
+    (void)document;
+}
+
+void ClientRuntime::ApplyJoinFormTextInput(ui::JoinServerScreenState& joinScreenState,
+                                           const ui::UiInputState& inputState) const {
+    if (!joinScreenState.editing || !joinScreenState.SelectedFieldIsEditable()) {
+        return;
+    }
+
+    std::string* target = nullptr;
+    const core::JoinFormField field = joinScreenState.SelectedField();
+    switch (field) {
+    case core::JoinFormField::Host:
+        target = &joinScreenState.host;
+        break;
+    case core::JoinFormField::Port:
+        target = &joinScreenState.port;
+        break;
+    case core::JoinFormField::Name:
+        target = &joinScreenState.playerName;
+        break;
+    case core::JoinFormField::Connect:
+    case core::JoinFormField::Back:
+        return;
+    }
+
+    for (const char character : inputState.textInput) {
+        if (field == core::JoinFormField::Port) {
+            if (character >= '0' && character <= '9' && target->size() < 5U) {
+                target->push_back(character);
+            }
+            continue;
+        }
+
+        const size_t maxSize = field == core::JoinFormField::Host ? 64U : 24U;
+        if (target->size() < maxSize) {
+            target->push_back(character);
+        }
+    }
+
+    if (inputState.backspacePressed && !target->empty()) {
         target->pop_back();
     }
 }
 
-bool ClientRuntime::ApplyJoinFormToConfig() {
-    if (joinFormState_.host.empty()) {
+void ClientRuntime::HandleJoinFormInteraction(flecs::world world, const ui::UiDocument& document,
+                                              const ui::UiInputState& inputState) {
+    ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
+    ui::UiInteractionState& interactionState = world.get_mut<ui::UiInteractionState>();
+    ui::UiCommandQueue& commandQueue = world.get_mut<ui::UiCommandQueue>();
+    interactionState.pressedWidget.reset();
+
+    ApplyJoinFormTextInput(joinScreenState, inputState);
+
+    if (!joinScreenState.editing) {
+        if (inputState.navigateDownPressed) {
+            joinScreenState.MoveNext();
+            interactionState.focusedWidget = ui::UiWidgetIdForJoinField(joinScreenState.SelectedField());
+        }
+        if (inputState.navigateUpPressed) {
+            joinScreenState.MovePrevious();
+            interactionState.focusedWidget = ui::UiWidgetIdForJoinField(joinScreenState.SelectedField());
+        }
+    }
+
+    if (joinScreenState.editing && (inputState.acceptPressed || inputState.backPressed)) {
+        commandQueue.Push({
+            .type = ui::UiCommandType::StopJoinFieldEdit,
+            .joinField = joinScreenState.SelectedField(),
+        });
+        return;
+    }
+
+    if (!joinScreenState.editing && inputState.backPressed) {
+        commandQueue.Push({.type = ui::UiCommandType::BackToMenu});
+        return;
+    }
+
+    std::optional<ui::UiWidgetId> activateWidget;
+    if (inputState.primaryPressed && interactionState.hoveredWidget.has_value()) {
+        activateWidget = interactionState.hoveredWidget;
+    } else if (inputState.acceptPressed) {
+        activateWidget = interactionState.focusedWidget;
+    }
+
+    if (!activateWidget.has_value()) {
+        return;
+    }
+
+    const core::JoinFormField field = ui::JoinFieldForWidgetId(*activateWidget);
+    interactionState.pressedWidget = activateWidget;
+
+    if (ui::JoinServerScreenState::IsEditableField(field)) {
+        commandQueue.Push({
+            .type = ui::UiCommandType::StartJoinFieldEdit,
+            .joinField = field,
+        });
+        return;
+    }
+
+    if (field == core::JoinFormField::Connect) {
+        commandQueue.Push({.type = ui::UiCommandType::SubmitJoin});
+        return;
+    }
+
+    if (field == core::JoinFormField::Back) {
+        commandQueue.Push({.type = ui::UiCommandType::BackToMenu});
+    }
+    (void)document;
+}
+
+bool ClientRuntime::ApplyJoinFormToConfig(const ui::JoinServerScreenState& joinScreenState) {
+    if (joinScreenState.host.empty()) {
         runtimeStatusMessage_ = "Host is required";
         return false;
     }
-    if (joinFormState_.playerName.empty()) {
+    if (joinScreenState.playerName.empty()) {
         runtimeStatusMessage_ = "Player name is required";
         return false;
     }
-    if (joinFormState_.port.empty()) {
+    if (joinScreenState.port.empty()) {
         runtimeStatusMessage_ = "Port is required";
         return false;
     }
 
     uint32_t parsedPort = 0;
-    const char* begin = joinFormState_.port.data();
-    const char* end = begin + joinFormState_.port.size();
+    const char* begin = joinScreenState.port.data();
+    const char* end = begin + joinScreenState.port.size();
     const auto [ptr, error] = std::from_chars(begin, end, parsedPort);
     if (error != std::errc{} || ptr != end || parsedPort == 0 || parsedPort > 65535) {
         runtimeStatusMessage_ = "Port must be between 1 and 65535";
         return false;
     }
 
-    config_.serverHost = joinFormState_.host;
+    config_.serverHost = joinScreenState.host;
     config_.serverPort = static_cast<uint16_t>(parsedPort);
-    config_.playerName = joinFormState_.playerName;
+    config_.playerName = joinScreenState.playerName;
     return true;
 }
 
-void ClientRuntime::ActivateMenuAction(core::MenuAction action) {
+void ClientRuntime::ActivateMenuAction(flecs::world world, core::MenuAction action) {
     switch (action) {
     case core::MenuAction::JoinServer:
         runtimeState_.requestedJoin = false;
         runtimeState_.mode = core::RuntimeMode::JoiningServer;
         runtimeState_.joiningInProgress = false;
-        joinFormState_.editing = false;
+        world.get_mut<ui::JoinServerScreenState>().editing = false;
+        world.get_mut<ui::UiInteractionState>().focusedWidget = ui::UiWidgetId::JoinHost;
         runtimeStatusMessage_ = "Select a field and press Enter to edit";
         disconnectReason_.clear();
         runtimeState_.disconnectReason.clear();
@@ -393,14 +586,14 @@ void ClientRuntime::ActivateMenuAction(core::MenuAction action) {
     }
 }
 
-bool ClientRuntime::BeginJoinServer() {
+bool ClientRuntime::BeginJoinServer(flecs::world world) {
     if (connecting_ || connected_) {
         return true;
     }
 
     runtimeState_.mode = core::RuntimeMode::JoiningServer;
     runtimeState_.joiningInProgress = false;
-    joinFormState_.editing = false;
+    world.get_mut<ui::JoinServerScreenState>().editing = false;
     runtimeStatusMessage_.clear();
     disconnectReason_.clear();
     runtimeState_.disconnectReason.clear();
@@ -429,14 +622,15 @@ bool ClientRuntime::BeginJoinServer() {
     return true;
 }
 
-void ClientRuntime::ReturnToMenu() {
+void ClientRuntime::ReturnToMenu(flecs::world world) {
     disconnectReason_.clear();
     runtimeState_.disconnectReason.clear();
     runtimeStatusMessage_.clear();
     runtimeState_.requestedJoin = false;
     runtimeState_.joiningInProgress = false;
-    joinFormState_.editing = false;
+    world.get_mut<ui::JoinServerScreenState>().editing = false;
     runtimeState_.mode = core::RuntimeMode::Menu;
+    world.get_mut<ui::UiInteractionState>().focusedWidget = ui::UiWidgetId::MenuStartServer;
 }
 
 void ClientRuntime::HandleConnectionEvents() {
@@ -926,6 +1120,108 @@ void ClientRuntime::ReconcileFromSnapshot(const net::SnapshotEntity& localEntity
                                        static_cast<float>(fixedStep_.StepSeconds()), serverKinematics_);
 }
 
+void ClientRuntime::PublishScreenState(flecs::world world) {
+    RefreshRuntimeState();
+    core::Application::UpdateScene(sceneManager_, runtimeState_);
+
+    const std::string status =
+        runtimeState_.mode == core::RuntimeMode::Disconnected ? disconnectReason_ : runtimeStatusMessage_;
+    world.set<ui::ScreenState>({
+        .mode = runtimeState_.mode,
+        .activeScene = sceneManager_.ActiveScene(),
+        .joiningInProgress = runtimeState_.joiningInProgress,
+        .statusMessage = status,
+        .disconnectReason = disconnectReason_,
+    });
+}
+
+ui::UiDocument ClientRuntime::BuildMenuDocument(const ui::ScreenState& screenState,
+                                                const ui::MenuScreenState& menuScreenState,
+                                                const ui::UiInteractionState& interactionState) const {
+    ui::UiDocument document;
+    document.scene = screenState.activeScene;
+    document.title = "Main Menu";
+    document.subtitle = "Select runtime mode";
+    document.statusMessage = screenState.statusMessage;
+    document.footerHint = "Navigate: W/S or Up/Down | Select: Enter/Space (A) | Mouse: hover + click";
+
+    const float windowWidth = window_.has_value() ? static_cast<float>(raylib::Window::GetWidth())
+                                                  : static_cast<float>(config_.windowWidth);
+    const float left = windowWidth * 0.5f - (kMenuWidth * 0.5f);
+    document.widgets.reserve(menuScreenState.Actions().size());
+
+    for (size_t index = 0; index < menuScreenState.Actions().size(); ++index) {
+        const core::MenuAction action = menuScreenState.Actions()[index];
+        const ui::UiWidgetId widgetId = ui::UiWidgetIdForMenuAction(action);
+        document.widgets.push_back({
+            .id = widgetId,
+            .kind = ui::UiWidgetKind::Button,
+            .bounds = ui::UiRect{left, kMenuStartY + static_cast<float>(index) * kRowSpacing, kMenuWidth, kRowHeight},
+            .label = std::string{core::MenuActionName(action)},
+            .state =
+                ui::UiWidgetState{
+                    .hovered = interactionState.hoveredWidget == widgetId,
+                    .focused = interactionState.focusedWidget == widgetId,
+                    .pressed = interactionState.pressedWidget == widgetId,
+                },
+        });
+    }
+
+    return document;
+}
+
+ui::UiDocument ClientRuntime::BuildJoinDocument(const ui::ScreenState& screenState,
+                                                const ui::JoinServerScreenState& joinScreenState,
+                                                const ui::UiInteractionState& interactionState) const {
+    ui::UiDocument document;
+    document.scene = screenState.activeScene;
+    document.title = "Join Server";
+    document.subtitle = "Configure host, port, and player name";
+    document.statusMessage = screenState.statusMessage;
+    document.footerHint = joinScreenState.editing
+        ? "Editing: type text, Backspace to erase, Enter/Esc to finish"
+        : "Navigate: W/S or Up/Down | Select: Enter/Space (A) | Back: Esc (B) | Mouse: hover + click";
+
+    const float windowWidth = window_.has_value() ? static_cast<float>(raylib::Window::GetWidth())
+                                                  : static_cast<float>(config_.windowWidth);
+    const float left = windowWidth * 0.5f - (kJoinWidth * 0.5f);
+    document.widgets.reserve(ui::JoinServerScreenState::kFields.size());
+
+    for (size_t index = 0; index < ui::JoinServerScreenState::kFields.size(); ++index) {
+        const core::JoinFormField field = ui::JoinServerScreenState::kFields[index];
+        const ui::UiWidgetId widgetId = ui::UiWidgetIdForJoinField(field);
+
+        std::string label = std::string{core::JoinFormFieldName(field)};
+        std::string value;
+        if (field == core::JoinFormField::Host) {
+            value = joinScreenState.host;
+        } else if (field == core::JoinFormField::Port) {
+            value = joinScreenState.port;
+        } else if (field == core::JoinFormField::Name) {
+            value = joinScreenState.playerName;
+        }
+
+        document.widgets.push_back({
+            .id = widgetId,
+            .kind = ui::JoinServerScreenState::IsEditableField(field) ? ui::UiWidgetKind::TextField
+                                                                      : ui::UiWidgetKind::Button,
+            .bounds = ui::UiRect{left, kJoinStartY + static_cast<float>(index) * kRowSpacing, kJoinWidth, kRowHeight},
+            .label = std::move(label),
+            .value = std::move(value),
+            .state =
+                ui::UiWidgetState{
+                    .hovered = interactionState.hoveredWidget == widgetId,
+                    .focused = interactionState.focusedWidget == widgetId,
+                    .pressed = interactionState.pressedWidget == widgetId,
+                    .editing = joinScreenState.editing && interactionState.focusedWidget == widgetId &&
+                        ui::JoinServerScreenState::IsEditableField(field),
+                },
+        });
+    }
+
+    return document;
+}
+
 components::WorldRenderState ClientRuntime::BuildWorldRenderState() const {
     components::WorldRenderState state;
 
@@ -972,15 +1268,6 @@ components::NetworkDebugState ClientRuntime::BuildDebugState() const {
     if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
         state.metrics = transport_.GetConnectionMetrics(serverConnection_);
     }
-    for (const core::MenuAction action : menuSelectionState_.Actions()) {
-        state.menuActions.emplace_back(core::MenuActionName(action));
-    }
-    state.selectedMenuIndex = menuSelectionState_.SelectedIndex();
-    state.joinHost = joinFormState_.host;
-    state.joinPort = joinFormState_.port;
-    state.joinPlayerName = joinFormState_.playerName;
-    state.selectedJoinFieldIndex = joinFormState_.SelectedIndex();
-    state.joinEditing = joinFormState_.editing;
     return state;
 }
 

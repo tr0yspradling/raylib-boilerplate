@@ -228,6 +228,9 @@ if(BUILD_GAME_CLIENT)
         src/client/scenes/splash_scene.hpp
         src/client/systems/render_system.hpp
         src/client/ui/debug_overlay.hpp
+        src/client/ui/ui_document.hpp
+        src/client/ui/ui_renderer.hpp
+        src/client/ui/ui_state.hpp
     )
     target_include_directories(client_runtime PUBLIC ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(client_runtime PUBLIC shared_game shared_net raylib_cpp ${FLECS_LIB} argparse::argparse)

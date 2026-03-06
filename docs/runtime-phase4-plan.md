@@ -103,3 +103,94 @@
 - `cmake --build --preset debug -j`
 - `ctest --preset debug`
 - `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15`
+
+## UI State Slice (2026-03-06): Flecs-Managed Screen/UI Resources
+
+### Current Scope
+- Move client menu/join screen state out of the old menu model structs and into flecs-managed resources.
+- Add a plain `UiDocument` / widget model plus interaction resources for keyboard, gamepad, and mouse.
+- Make the client UI phases (`UiBuild`, `UiInteraction`) do real work and emit typed commands back to the runtime.
+- Split menu/join rendering out of the monolithic render switchboard into a dedicated UI renderer while preserving gameplay rendering and overlay behavior.
+
+### Assumptions
+- Transport, prediction, reconciliation, and multiplayer session logic remain in `ClientRuntime` for this slice.
+- `RuntimeState + SceneManager` can remain transitional as long as menu/join screen state and input handling move into world resources.
+- The first UI-document slice only needs to cover active menu/join screens plus hover/focus/pressed/editing states; placeholder screens can remain status-card based.
+
+### Concrete File Touch List
+- `docs/runtime-phase4-plan.md`
+- `docs/runtime-reshape-plan.md`
+- `docs/context-current.md`
+- `docs/multiplayer-architecture.md`
+- `docs/multiplayer-runbook.md`
+- `src/client/components/components.hpp`
+- `src/client/input/input_manager.hpp`
+- `src/client/modules/client_runtime_module.hpp`
+- `src/client/runtime/client_runtime.hpp`
+- `src/client/runtime/client_runtime.cpp`
+- `src/client/systems/render_system.hpp`
+- `src/client/ui/ui_document.hpp` (new)
+- `src/client/ui/ui_renderer.hpp` (new)
+- `src/client/ui/ui_state.hpp` (new)
+- `tests/CMakeLists.txt`
+- `tests/sim/menu_model.cpp`
+- `tests/sim/join_form_model.cpp`
+- `tests/sim/ui_document.cpp` (new)
+
+### Acceptance Criteria
+- Menu and join-form state live in flecs-managed resources instead of the old `MenuSelectionState` / `JoinServerFormState` runtime members.
+- `UiBuild` produces a document with widget bounds/state for the active menu/join screen.
+- `UiInteraction` supports:
+  - keyboard navigation/select/back
+  - gamepad navigation/select/back
+  - mouse hover
+  - mouse click activation
+- Menu and join-form rendering consume the `UiDocument` through a dedicated UI renderer path.
+- Validation gate passes:
+  - `cmake --build --preset debug -j`
+  - `ctest --preset debug`
+
+### Status
+- UI/document slice completed on 2026-03-06. Follow-on Phase 4 slices remain in progress.
+
+### Progress Update
+- Completed work:
+  - Added flecs-managed UI resources for active screen state, menu state, join-form state, input snapshots, interaction state, and queued UI commands.
+  - Replaced the old menu/join runtime-owned state structs with `UiDocument`-driven screen building in the `UiBuild` phase.
+  - Implemented keyboard/gamepad navigation plus mouse hover/click handling in `UiInteraction`.
+  - Moved menu and join rendering onto a dedicated `UiRenderer` that consumes the built document.
+  - Added coverage for the new UI state/document helpers and preserved the existing runtime/build validation gates.
+- Changed files:
+  - `docs/runtime-phase4-plan.md`
+  - `docs/runtime-reshape-plan.md`
+  - `docs/context-current.md`
+  - `docs/multiplayer-architecture.md`
+  - `docs/multiplayer-runbook.md`
+  - `README.md`
+  - `REFACTORING.md`
+  - `CMakeLists.txt`
+  - `src/client/app/client_app.cpp`
+  - `src/client/app/client_app.hpp`
+  - `src/client/components/components.hpp`
+  - `src/client/core/menu_model.hpp`
+  - `src/client/input/input_manager.hpp`
+  - `src/client/modules/client_runtime_module.hpp`
+  - `src/client/runtime/client_runtime.cpp`
+  - `src/client/runtime/client_runtime.hpp`
+  - `src/client/systems/render_system.hpp`
+  - `src/client/ui/ui_document.hpp`
+  - `src/client/ui/ui_renderer.hpp`
+  - `src/client/ui/ui_state.hpp`
+  - `tests/CMakeLists.txt`
+  - `tests/sim/menu_model.cpp`
+  - `tests/sim/join_form_model.cpp`
+  - `tests/sim/ui_document.cpp`
+- Remaining risks/blockers:
+  - Transport/session state and most runtime flow logic still live in `ClientRuntime`.
+  - `RuntimeState + SceneManager` remains the transitional screen-state mapping layer under the flecs resources.
+  - Gameplay, placeholder status screens, and debug/world rendering are not yet split into dedicated presentation modules.
+
+### Validation
+- `cmake --build --preset debug -j`
+- `ctest --preset debug`
+- `./build/debug/game_client --skip-splash`

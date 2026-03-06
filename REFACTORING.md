@@ -49,6 +49,8 @@ src/
    those runtime services.
 5. The old `RuntimeState + SceneManager` model remains in place only as a
    transitional client screen-state layer and should continue shrinking.
+6. Menu/join UI state now lives in flecs-managed resources and is rendered
+   through a built `UiDocument`.
 
 ## Current Client Phase Order
 
@@ -77,7 +79,7 @@ src/
 
 - Replace the current menu model with a UI document/widget layer that supports
   mouse hover/click alongside keyboard/gamepad navigation.
-- Move client screen/runtime state into explicit flecs resources/components
+- Move more client runtime/session state into explicit flecs resources/components
   instead of relying on transitional scene-switch mapping.
 - Split the monolithic render path into separate world, UI, and debug
   presentation modules.

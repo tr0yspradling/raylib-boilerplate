@@ -93,7 +93,8 @@ Direct auto-join (dev shortcut):
 - Both `game_client` and `game_server` now bootstrap through `flecs::world` composition roots.
 - Client runtime phase order is validated by `test_sim_client_pipeline`.
 - Server runtime phase order is validated by `test_sim_server_pipeline`.
-- The current UI/presentation stack is transitional: menu flow still rides on the existing runtime-state + scene mapping behind the new flecs shell.
+- Menu/join UI state now lives in flecs-managed resources and is rendered from a built `UiDocument`.
+- The current UI/presentation stack is still transitional overall: gameplay/status/debug presentation remains on the older render path behind the new flecs shell.
 
 ## Controls
 - Move: `A/D` or arrows
@@ -102,6 +103,7 @@ Direct auto-join (dev shortcut):
 - Menu navigate: `W/S` or arrows (gamepad D-pad up/down)
 - Menu select: `Enter`/`Space` (gamepad south face button)
 - Menu back: `Esc` (gamepad east face button)
+- Menu / join mouse support: hover and left-click
 - Join form editing: select `Host`/`Port`/`Name`, type text, `Backspace` to erase, `Enter`/`Esc` to stop editing
 - While connecting: `Esc` cancels and returns to menu
 - Return from placeholder/disconnected screens: `Enter` or `Esc`
@@ -120,6 +122,7 @@ If you are validating the Phase 4 flecs foundation specifically, also confirm:
 1. `game_server` starts and accepts connections with no runtime regressions.
 2. `game_client` still reaches splash/menu and the join form through the new app shell.
 3. Automated phase-order tests pass before manual GUI checks.
+4. Menu and join controls work by keyboard/gamepad and by mouse hover/click.
 
 ## Config Notes
 `src/server/config/server.cfg` supports:

@@ -10,9 +10,16 @@ bool ClientApp::Initialize() {
     world_.set<modules::ClientRuntimeRef>({.runtime = &runtime_});
     world_.set<components::WorldRenderState>({});
     world_.set<components::NetworkDebugState>({});
+    world_.set<ui::UiDocument>({});
+    world_.set<ui::UiInputState>({});
+    world_.set<ui::UiInteractionState>({});
+    world_.set<ui::UiCommandQueue>({});
+    world_.set<ui::MenuScreenState>({});
+    world_.set<ui::JoinServerScreenState>({});
+    world_.set<ui::ScreenState>({});
     world_.import<modules::ClientRuntimeModule>();
 
-    initialized_ = runtime_.Initialize();
+    initialized_ = runtime_.Initialize(world_);
     return initialized_;
 }
 
