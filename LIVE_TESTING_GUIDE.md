@@ -9,10 +9,10 @@ the boilerplate to make sure the basics still work.
 git submodule update --init --recursive
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
-./build/raylib_boilerplate
+./build/game_client
 ```
 
-For CLion/IDE builds the run target is also `raylib_boilerplate`.
+For CLion/IDE builds the run target is `game_client`.
 
 ## Manual Test Pass
 
@@ -34,7 +34,7 @@ For CLion/IDE builds the run target is also `raylib_boilerplate`.
 
 ```bash
 # Rebuild after a clean-up
-cmake --build build -j --target raylib_boilerplate
+cmake --build build -j --target game_client
 
 # Remove build directory
 rm -rf build

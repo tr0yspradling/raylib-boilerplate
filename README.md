@@ -24,7 +24,7 @@ swap scenes, wire up systems, and prototype gameplay.
 git submodule update --init --recursive
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
-./build/raylib_boilerplate
+./build/game_client
 ```
 
 ## Dependencies

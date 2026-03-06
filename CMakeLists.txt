@@ -1,62 +1,99 @@
-# CMakeLists.txt
 cmake_minimum_required(VERSION 3.23)
-# Enable both C and C++ since vendored deps (raylib, flecs amalgamation) use C
 project(raylib_boilerplate LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Suppress developer warning about OpenGL deprecation on macOS (raylib dependency)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE INTERNAL "")
-
-# We'll add strict warnings only to our own target later
 
 set(EXTERNAL_DIR ${CMAKE_SOURCE_DIR}/external)
 option(USE_VENDORED_DEPS "Use dependencies from external directory" ON)
 
-# raylib: prefer vendored; if missing and a system package exists, use it
-set(RAYLIB_TARGET raylib)
-if (USE_VENDORED_DEPS)
-    if (EXISTS ${EXTERNAL_DIR}/raylib/CMakeLists.txt)
-        message(STATUS "Using vendored raylib at ${EXTERNAL_DIR}/raylib")
-        add_subdirectory(${EXTERNAL_DIR}/raylib)
+option(BUILD_GAME_CLIENT "Build networked game client" ON)
+option(BUILD_GAME_SERVER "Build dedicated authoritative server" ON)
+option(BUILD_LEGACY_SCENE_APP "Build old single-player scene app" OFF)
+
+include(CTest)
+
+function(apply_project_warnings target_name)
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE /W4)
     else()
-        find_package(raylib QUIET)
-        if (NOT raylib_FOUND)
-            message(FATAL_ERROR "Vendored raylib not found and no system raylib available. Initialize submodule or set USE_VENDORED_DEPS=OFF.")
+        target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion)
+    endif()
+endfunction()
+
+set(NEEDS_RAYLIB OFF)
+if(BUILD_GAME_CLIENT OR BUILD_LEGACY_SCENE_APP)
+    set(NEEDS_RAYLIB ON)
+endif()
+
+if(NEEDS_RAYLIB)
+    set(RAYLIB_TARGET raylib)
+    if(USE_VENDORED_DEPS)
+        if(EXISTS ${EXTERNAL_DIR}/raylib/CMakeLists.txt)
+            message(STATUS "Using vendored raylib at ${EXTERNAL_DIR}/raylib")
+            add_subdirectory(${EXTERNAL_DIR}/raylib)
+        else()
+            find_package(raylib QUIET)
+            if(NOT raylib_FOUND)
+                message(FATAL_ERROR "Vendored raylib not found and no system raylib available.")
+            endif()
         endif()
+    else()
+        find_package(raylib REQUIRED)
     endif()
-else()
-    find_package(raylib REQUIRED)
-endif()
-if (TARGET raylib::raylib)
-    set(RAYLIB_TARGET raylib::raylib)
-endif()
 
-# raylib-cpp: header-only C++ wrapper; prefer vendored, else allow RAYLIB_CPP_DIR override
-set(RAYLIB_CPP_DIR ${EXTERNAL_DIR}/raylib-cpp)
-set(RAYLIB_CPP_HEADER_PATH)
-if (EXISTS ${RAYLIB_CPP_DIR}/include/raylib-cpp.hpp)
-    set(RAYLIB_CPP_HEADER_PATH ${RAYLIB_CPP_DIR}/include)
-elseif (EXISTS ${RAYLIB_CPP_DIR}/raylib-cpp.hpp)
-    # Some checkouts keep header at repo root
-    set(RAYLIB_CPP_HEADER_PATH ${RAYLIB_CPP_DIR})
-elseif(DEFINED RAYLIB_CPP_DIR AND EXISTS ${RAYLIB_CPP_DIR}/include/raylib-cpp.hpp)
-    set(RAYLIB_CPP_HEADER_PATH ${RAYLIB_CPP_DIR}/include)
-elseif(DEFINED RAYLIB_CPP_DIR AND EXISTS ${RAYLIB_CPP_DIR}/raylib-cpp.hpp)
-    set(RAYLIB_CPP_HEADER_PATH ${RAYLIB_CPP_DIR})
-else()
-    message(FATAL_ERROR "raylib-cpp not found. Provide vendored external/raylib-cpp or set RAYLIB_CPP_DIR to a local checkout.")
+    if(TARGET raylib::raylib)
+        set(RAYLIB_TARGET raylib::raylib)
+    endif()
+
+    set(RAYLIB_CPP_DIR ${EXTERNAL_DIR}/raylib-cpp)
+    if(EXISTS ${RAYLIB_CPP_DIR}/include/raylib-cpp.hpp)
+        set(RAYLIB_CPP_HEADER_PATH ${RAYLIB_CPP_DIR}/include)
+    elseif(EXISTS ${RAYLIB_CPP_DIR}/raylib-cpp.hpp)
+        set(RAYLIB_CPP_HEADER_PATH ${RAYLIB_CPP_DIR})
+    else()
+        message(FATAL_ERROR "raylib-cpp not found. Provide external/raylib-cpp.")
+    endif()
+
+    add_library(raylib_cpp INTERFACE)
+    target_include_directories(raylib_cpp INTERFACE ${RAYLIB_CPP_HEADER_PATH})
+    target_link_libraries(raylib_cpp INTERFACE ${RAYLIB_TARGET})
 endif()
 
-add_library(raylib_cpp INTERFACE)
-target_include_directories(raylib_cpp INTERFACE ${RAYLIB_CPP_HEADER_PATH})
-target_link_libraries(raylib_cpp INTERFACE ${RAYLIB_TARGET})
+set(GNS_TARGET)
+if(BUILD_GAME_CLIENT OR BUILD_GAME_SERVER)
+    if(USE_VENDORED_DEPS AND EXISTS ${EXTERNAL_DIR}/GameNetworkingSockets/CMakeLists.txt)
+        set(BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
+        set(BUILD_STATIC_LIB ON CACHE BOOL "" FORCE)
+        set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+        set(ENABLE_ICE OFF CACHE BOOL "" FORCE)
+        set(USE_STEAMWEBRTC OFF CACHE BOOL "" FORCE)
+        add_subdirectory(${EXTERNAL_DIR}/GameNetworkingSockets EXCLUDE_FROM_ALL)
+    else()
+        find_package(GameNetworkingSockets CONFIG REQUIRED)
+    endif()
 
-# imgui: prefer vendored; otherwise allow specifying IMGUI_DIR to a system/local install
-set(IMGUI_DIR ${EXTERNAL_DIR}/imgui)
-if (EXISTS ${IMGUI_DIR}/imgui.cpp)
+    if(TARGET GameNetworkingSockets::static)
+        set(GNS_TARGET GameNetworkingSockets::static)
+    elseif(TARGET GameNetworkingSockets::GameNetworkingSockets_s)
+        set(GNS_TARGET GameNetworkingSockets::GameNetworkingSockets_s)
+    elseif(TARGET GameNetworkingSockets_s)
+        set(GNS_TARGET GameNetworkingSockets_s)
+    else()
+        message(FATAL_ERROR "Could not find a usable static GameNetworkingSockets target.")
+    endif()
+endif()
+
+if(BUILD_LEGACY_SCENE_APP)
+    set(IMGUI_DIR ${EXTERNAL_DIR}/imgui)
+    if(NOT EXISTS ${IMGUI_DIR}/imgui.cpp)
+        message(FATAL_ERROR "ImGui not found for legacy app")
+    endif()
+
     add_library(imgui STATIC
         ${IMGUI_DIR}/imgui.cpp
         ${IMGUI_DIR}/imgui_draw.cpp
@@ -64,103 +101,129 @@ if (EXISTS ${IMGUI_DIR}/imgui.cpp)
         ${IMGUI_DIR}/imgui_widgets.cpp
     )
     target_include_directories(imgui PUBLIC ${IMGUI_DIR})
-    if (EXISTS ${IMGUI_DIR}/imgui_demo.cpp)
-        target_sources(imgui PRIVATE ${IMGUI_DIR}/imgui_demo.cpp)
-    endif()
-elseif(DEFINED IMGUI_DIR AND EXISTS ${IMGUI_DIR}/imgui.cpp)
-    message(STATUS "Using system/local ImGui at ${IMGUI_DIR}")
-    add_library(imgui STATIC
-        ${IMGUI_DIR}/imgui.cpp
-        ${IMGUI_DIR}/imgui_draw.cpp
-        ${IMGUI_DIR}/imgui_tables.cpp
-        ${IMGUI_DIR}/imgui_widgets.cpp
-    )
-    target_include_directories(imgui PUBLIC ${IMGUI_DIR})
-    if (EXISTS ${IMGUI_DIR}/imgui_demo.cpp)
-        target_sources(imgui PRIVATE ${IMGUI_DIR}/imgui_demo.cpp)
-    endif()
-else()
-    message(FATAL_ERROR "ImGui not found. Provide vendored external/imgui or set IMGUI_DIR to a local install.")
-endif()
 
-# rlImGui: prefer vendored; otherwise allow specifying RLIMGUI_DIR
-set(RLIMGUI_DIR ${EXTERNAL_DIR}/rlImGui)
-if (EXISTS ${RLIMGUI_DIR}/rlImGui.cpp)
+    if(EXISTS ${IMGUI_DIR}/imgui_demo.cpp)
+        target_sources(imgui PRIVATE ${IMGUI_DIR}/imgui_demo.cpp)
+    endif()
+
+    set(RLIMGUI_DIR ${EXTERNAL_DIR}/rlImGui)
     add_library(rlImGui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
     target_include_directories(rlImGui PUBLIC ${RLIMGUI_DIR} ${IMGUI_DIR})
     target_link_libraries(rlImGui PUBLIC ${RAYLIB_TARGET} imgui)
-elseif(DEFINED RLIMGUI_DIR AND EXISTS ${RLIMGUI_DIR}/rlImGui.cpp)
-    message(STATUS "Using system/local rlImGui at ${RLIMGUI_DIR}")
-    add_library(rlImGui STATIC ${RLIMGUI_DIR}/rlImGui.cpp)
-    target_include_directories(rlImGui PUBLIC ${RLIMGUI_DIR} ${IMGUI_DIR})
-    target_link_libraries(rlImGui PUBLIC ${RAYLIB_TARGET} imgui)
-else()
-    message(FATAL_ERROR "rlImGui not found. Provide vendored external/rlImGui or set RLIMGUI_DIR to a local checkout.")
-endif()
 
-# flecs: prefer amalgamated source (flecs.c/flecs.h) in external/flecs, else submodule CMake, else system package
-set(FLECS_DIR ${EXTERNAL_DIR}/flecs)
-if (USE_VENDORED_DEPS)
-    if (EXISTS ${FLECS_DIR}/flecs.c AND EXISTS ${FLECS_DIR}/flecs.h)
+    set(FLECS_DIR ${EXTERNAL_DIR}/flecs)
+    if(EXISTS ${FLECS_DIR}/flecs.c AND EXISTS ${FLECS_DIR}/flecs.h)
         add_library(flecs STATIC ${FLECS_DIR}/flecs.c)
         target_include_directories(flecs PUBLIC ${FLECS_DIR})
-    elseif (EXISTS ${FLECS_DIR}/CMakeLists.txt)
+    elseif(EXISTS ${FLECS_DIR}/CMakeLists.txt)
         add_subdirectory(${FLECS_DIR})
     else()
-        find_package(flecs CONFIG QUIET)
-        if (NOT flecs_FOUND)
-            message(FATAL_ERROR "flecs not found. Provide vendored external/flecs or install a system flecs package.")
-        endif()
+        find_package(flecs CONFIG REQUIRED)
+    endif()
+
+    set(FLECS_LIB flecs)
+    if(TARGET flecs::flecs)
+        set(FLECS_LIB flecs::flecs)
+    elseif(TARGET flecs_static)
+        set(FLECS_LIB flecs_static)
     endif()
 endif()
 
-# Normalize flecs target name
-set(FLECS_LIB flecs)
-if (TARGET flecs::flecs)
-    set(FLECS_LIB flecs::flecs)
-elseif (TARGET flecs_static)
-    set(FLECS_LIB flecs_static)
+add_library(shared_game INTERFACE)
+target_include_directories(shared_game INTERFACE ${CMAKE_SOURCE_DIR}/src)
+
+if(BUILD_GAME_CLIENT OR BUILD_GAME_SERVER)
+    add_library(shared_net STATIC
+        src/shared/net/transport_gns.cpp
+        src/shared/net/transport.hpp
+        src/shared/net/transport_gns.hpp
+        src/shared/net/serializer.hpp
+        src/shared/net/protocol.hpp
+        src/shared/net/message_ids.hpp
+        src/shared/net/lanes.hpp
+        src/shared/net/send_policy.hpp
+        src/shared/net/snapshot.hpp
+        src/shared/net/delta.hpp
+        src/shared/net/auth.hpp
+    )
+    target_include_directories(shared_net PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(shared_net PUBLIC shared_game ${GNS_TARGET})
+    apply_project_warnings(shared_net)
 endif()
 
-# Executable
-add_executable(raylib_boilerplate)
+if(BUILD_GAME_CLIENT)
+    add_library(client_runtime STATIC
+        src/client/client_entry.cpp
+        src/client/client_entry.hpp
+        src/client/game_client.cpp
+        src/client/game_client.hpp
+        src/client/components/components.hpp
+        src/client/core/application.hpp
+        src/client/core/config.hpp
+        src/client/core/scene.hpp
+        src/client/core/scene_manager.hpp
+        src/client/input/input_manager.hpp
+        src/client/physics/movement_system.hpp
+        src/client/scenes/menu_scene.hpp
+        src/client/scenes/sandbox_scene.hpp
+        src/client/scenes/splash_scene.hpp
+        src/client/systems/render_system.hpp
+        src/client/ui/debug_overlay.hpp
+    )
+    target_include_directories(client_runtime PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(client_runtime PUBLIC shared_game shared_net raylib_cpp)
+    apply_project_warnings(client_runtime)
 
-# Keep all project sources/headers attached to the app target for IDE integration.
-file(GLOB_RECURSE RAYLIB_BOILERPLATE_SOURCES CONFIGURE_DEPENDS
-    ${CMAKE_SOURCE_DIR}/src/*.cpp
-    ${CMAKE_SOURCE_DIR}/src/*.hpp
-)
-target_sources(raylib_boilerplate PRIVATE ${RAYLIB_BOILERPLATE_SOURCES})
-source_group(TREE ${CMAKE_SOURCE_DIR}/src PREFIX src FILES ${RAYLIB_BOILERPLATE_SOURCES})
+    add_executable(game_client src/client/main.cpp)
+    target_include_directories(game_client PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(game_client PRIVATE client_runtime)
+    apply_project_warnings(game_client)
 
-target_include_directories(raylib_boilerplate
-    PRIVATE
-        ${IMGUI_DIR}
-        ${RLIMGUI_DIR}
-        ${FLECS_DIR}
-        ${FLECS_DIR}/include
-        ${FLECS_DIR}/include/flecs/addons/cpp
-        src
-)
+    # Backward-compatible build target name without producing a duplicate runtime binary.
+    add_custom_target(raylib_boilerplate DEPENDS game_client)
 
-target_link_libraries(raylib_boilerplate
-    PRIVATE
-        raylib_cpp
-        rlImGui
-        ${FLECS_LIB}
-)
+    set_target_properties(game_client PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-# Add strict compiler warnings to the executable
-foreach(target raylib_boilerplate)
-    if(MSVC)
-        target_compile_options(${target} PRIVATE /W4)
-    else()
-        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion)
+    if(APPLE)
+        target_link_libraries(game_client PRIVATE "-framework IOKit" "-framework Cocoa" "-framework OpenGL")
+    elseif(UNIX AND NOT APPLE)
+        target_link_libraries(game_client PRIVATE m pthread GL dl X11)
     endif()
+endif()
 
-    if (APPLE)
-        target_link_libraries(${target} PRIVATE "-framework IOKit" "-framework Cocoa" "-framework OpenGL")
-    elseif (UNIX AND NOT APPLE)
-        target_link_libraries(${target} PRIVATE m pthread GL dl X11)
+if(BUILD_GAME_SERVER)
+    add_library(server_runtime STATIC
+        src/server/game_server.cpp
+        src/server/game_server.hpp
+        src/server/world_persistence.cpp
+        src/server/world_persistence.hpp
+        src/server/config/server_config.cpp
+        src/server/config/server_config.hpp
+    )
+    target_include_directories(server_runtime PUBLIC ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(server_runtime PUBLIC shared_game shared_net)
+    apply_project_warnings(server_runtime)
+
+    add_executable(game_server src/server/main.cpp)
+    target_include_directories(game_server PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(game_server PRIVATE server_runtime)
+    apply_project_warnings(game_server)
+    set_target_properties(game_server PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+endif()
+
+if(BUILD_LEGACY_SCENE_APP)
+    add_executable(legacy_singleplayer src/main.cpp)
+    target_include_directories(legacy_singleplayer PRIVATE ${CMAKE_SOURCE_DIR}/src ${IMGUI_DIR} ${RLIMGUI_DIR})
+    target_link_libraries(legacy_singleplayer PRIVATE raylib_cpp rlImGui ${FLECS_LIB})
+    apply_project_warnings(legacy_singleplayer)
+
+    if(APPLE)
+        target_link_libraries(legacy_singleplayer PRIVATE "-framework IOKit" "-framework Cocoa" "-framework OpenGL")
+    elseif(UNIX AND NOT APPLE)
+        target_link_libraries(legacy_singleplayer PRIVATE m pthread GL dl X11)
     endif()
-endforeach()
+endif()
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

@@ -1,0 +1,35 @@
+add_executable(test_net_serializer_roundtrip net/serializer_roundtrip.cpp)
+target_include_directories(test_net_serializer_roundtrip PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_net_serializer_roundtrip PRIVATE shared_game shared_net)
+
+add_executable(test_net_send_policy net/send_policy.cpp)
+target_include_directories(test_net_send_policy PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_net_send_policy PRIVATE shared_game shared_net)
+
+add_executable(test_sim_fixed_step sim/fixed_step_sim.cpp)
+target_include_directories(test_sim_fixed_step PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_fixed_step PRIVATE shared_game)
+
+add_executable(test_sim_input_validation sim/input_validation.cpp)
+target_include_directories(test_sim_input_validation PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_input_validation PRIVATE shared_game)
+
+add_executable(test_sim_interpolation_buffer sim/interpolation_buffer.cpp)
+target_include_directories(test_sim_interpolation_buffer PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_interpolation_buffer PRIVATE shared_game)
+
+add_executable(test_sim_chunk_interest sim/chunk_interest.cpp)
+target_include_directories(test_sim_chunk_interest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_chunk_interest PRIVATE shared_game)
+
+add_executable(test_sim_chunk_delta sim/chunk_delta.cpp)
+target_include_directories(test_sim_chunk_delta PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_chunk_delta PRIVATE shared_game)
+
+add_test(NAME test_net_serializer_roundtrip COMMAND test_net_serializer_roundtrip)
+add_test(NAME test_net_send_policy COMMAND test_net_send_policy)
+add_test(NAME test_sim_fixed_step COMMAND test_sim_fixed_step)
+add_test(NAME test_sim_input_validation COMMAND test_sim_input_validation)
+add_test(NAME test_sim_interpolation_buffer COMMAND test_sim_interpolation_buffer)
+add_test(NAME test_sim_chunk_interest COMMAND test_sim_chunk_interest)
+add_test(NAME test_sim_chunk_delta COMMAND test_sim_chunk_delta)

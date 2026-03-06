@@ -10,13 +10,13 @@ Single source of truth for OpenAI agents and Claude Code. Link or symlink `CLAUD
 
 - Configure: `cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug`
 - Build: `cmake --build build -j`
-- Run: `./build/raylib_boilerplate`
+- Run: `./build/game_client`
 - Clean: `cmake --build build --target clean`
 
 **IDE sandbox or existing in-source build**
 
 - Build: `cmake --build cmake-build-debug`
-- Run: `./cmake-build-debug/raylib_boilerplate`
+- Run: `./cmake-build-debug/game_client`
 - Clean: `cmake --build cmake-build-debug --target clean`
 
 **Notes**
