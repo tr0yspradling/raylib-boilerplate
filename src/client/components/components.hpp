@@ -26,6 +26,13 @@ struct WorldRenderState {
     std::vector<PlayerRenderState> remotePlayers;
 };
 
+struct StatusRenderState {
+    core::SceneKind activeScene = core::SceneKind::Splash;
+    std::string title;
+    std::string subtitle;
+    std::string footer;
+};
+
 struct NetworkDebugState {
     std::string sceneName;
     core::SceneKind activeScene = core::SceneKind::Splash;

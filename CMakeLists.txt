@@ -221,6 +221,11 @@ if(BUILD_GAME_CLIENT)
         src/client/core/scene_manager.hpp
         src/client/input/input_manager.hpp
         src/client/physics/movement_system.hpp
+        src/client/render/background_renderer.hpp
+        src/client/render/splash_renderer.hpp
+        src/client/render/status_presenter.hpp
+        src/client/render/status_renderer.hpp
+        src/client/render/world_renderer.hpp
         src/client/runtime/client_runtime.cpp
         src/client/runtime/client_runtime.hpp
         src/client/scenes/menu_scene.hpp

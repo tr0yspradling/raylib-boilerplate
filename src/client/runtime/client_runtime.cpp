@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "client/scenes/menu_scene.hpp"
+#include "client/render/status_presenter.hpp"
 #include "client/scenes/sandbox_scene.hpp"
 #include "client/scenes/splash_scene.hpp"
 #include "shared/game/chunk_streaming.hpp"
@@ -253,6 +254,7 @@ void ClientRuntime::PublishPresentation(flecs::world world, float frameSeconds) 
 
     PublishScreenState(world);
     world.set<components::WorldRenderState>(BuildWorldRenderState());
+    world.set<components::StatusRenderState>(BuildStatusRenderState());
     world.set<components::NetworkDebugState>(BuildDebugState());
 }
 
@@ -263,10 +265,11 @@ void ClientRuntime::RenderPublishedFrame(const flecs::world& world) {
 
     const components::WorldRenderState& worldState = world.get<components::WorldRenderState>();
     const ui::UiDocument& document = world.get<ui::UiDocument>();
+    const components::StatusRenderState& statusState = world.get<components::StatusRenderState>();
     const components::NetworkDebugState& debugState = world.get<components::NetworkDebugState>();
 
     window_->BeginDrawing();
-    systems::RenderSystem::DrawFrame(worldState, document, debugState, debugOverlayEnabled_);
+    systems::RenderSystem::DrawFrame(worldState, document, statusState, debugState, debugOverlayEnabled_);
     window_->EndDrawing();
 }
 
@@ -1248,6 +1251,10 @@ components::WorldRenderState ClientRuntime::BuildWorldRenderState() const {
     }
 
     return state;
+}
+
+components::StatusRenderState ClientRuntime::BuildStatusRenderState() const {
+    return render::BuildStatusRenderState(sceneManager_.ActiveScene(), runtimeStatusMessage_, disconnectReason_);
 }
 
 components::NetworkDebugState ClientRuntime::BuildDebugState() const {

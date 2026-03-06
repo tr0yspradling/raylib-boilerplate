@@ -194,3 +194,85 @@
 - `cmake --build --preset debug -j`
 - `ctest --preset debug`
 - `./build/debug/game_client --skip-splash`
+
+## Render Split Slice (2026-03-06): Presentation/Renderer Decomposition
+
+### Current Scope
+- Split the remaining client render path into dedicated background, splash, status, and gameplay render helpers.
+- Move non-UI status-screen text selection out of `RenderSystem` into explicit presentation state built during `PresentationBuild`.
+- Keep `RenderSystem` only as the top-level router/orchestrator across UI, gameplay, splash, status, and debug overlay rendering.
+
+### Assumptions
+- The current `UiDocument` path for menu/join screens remains the UI presentation contract for this slice.
+- `DebugOverlay` can remain its own renderer; the slice only needs to remove gameplay/status/splash drawing from the monolithic switchboard.
+- No gameplay/network behavior changes are intended; this is a presentation-structure refactor.
+
+### Concrete File Touch List
+- `docs/runtime-phase4-plan.md`
+- `docs/runtime-reshape-plan.md`
+- `docs/context-current.md`
+- `docs/multiplayer-architecture.md`
+- `docs/multiplayer-runbook.md`
+- `README.md`
+- `REFACTORING.md`
+- `CMakeLists.txt`
+- `src/client/app/client_app.cpp`
+- `src/client/components/components.hpp`
+- `src/client/runtime/client_runtime.cpp`
+- `src/client/runtime/client_runtime.hpp`
+- `src/client/systems/render_system.hpp`
+- `src/client/render/background_renderer.hpp` (new)
+- `src/client/render/splash_renderer.hpp` (new)
+- `src/client/render/status_presenter.hpp` (new)
+- `src/client/render/status_renderer.hpp` (new)
+- `src/client/render/world_renderer.hpp` (new)
+- `tests/CMakeLists.txt`
+- `tests/sim/status_presenter.cpp` (new)
+
+### Acceptance Criteria
+- `RenderSystem` no longer owns concrete gameplay/status/splash draw implementations.
+- Non-UI status screens use explicit presentation state built during `PresentationBuild`.
+- Gameplay, splash, and centered status rendering each live in dedicated renderer headers.
+- Validation gate passes:
+  - `cmake --build --preset debug -j`
+  - `ctest --preset debug`
+
+### Status
+- Render decomposition slice completed on 2026-03-06. Follow-on Phase 4 slices remain in progress.
+
+### Progress Update
+- Completed work:
+  - Added explicit non-UI status presentation state built during `PresentationBuild`.
+  - Split splash, centered status, gameplay world, and background drawing into dedicated renderer headers.
+  - Reduced `RenderSystem` to a top-level router across UI, splash, status, gameplay, and debug overlay rendering.
+  - Added coverage for the status presentation mapping and preserved client runtime validation.
+- Changed files:
+  - `docs/runtime-phase4-plan.md`
+  - `docs/runtime-reshape-plan.md`
+  - `docs/context-current.md`
+  - `docs/multiplayer-architecture.md`
+  - `docs/multiplayer-runbook.md`
+  - `README.md`
+  - `REFACTORING.md`
+  - `CMakeLists.txt`
+  - `src/client/app/client_app.cpp`
+  - `src/client/components/components.hpp`
+  - `src/client/runtime/client_runtime.cpp`
+  - `src/client/runtime/client_runtime.hpp`
+  - `src/client/systems/render_system.hpp`
+  - `src/client/render/background_renderer.hpp`
+  - `src/client/render/splash_renderer.hpp`
+  - `src/client/render/status_presenter.hpp`
+  - `src/client/render/status_renderer.hpp`
+  - `src/client/render/world_renderer.hpp`
+  - `tests/CMakeLists.txt`
+  - `tests/sim/status_presenter.cpp`
+- Remaining risks/blockers:
+  - This slice does not yet move transport/session logic out of `ClientRuntime`.
+  - `RuntimeState + SceneManager` remains a transitional screen-state layer.
+  - The real `Start Server`, `Singleplayer`, and `Options` flows still need implementation on top of the cleaner presentation split.
+
+### Validation
+- `cmake --build --preset debug -j`
+- `ctest --preset debug`
+- `./build/debug/game_client --skip-splash`

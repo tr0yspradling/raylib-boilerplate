@@ -9,6 +9,7 @@ ClientApp::ClientApp(ClientConfig config) : runtime_(std::move(config)) {}
 bool ClientApp::Initialize() {
     world_.set<modules::ClientRuntimeRef>({.runtime = &runtime_});
     world_.set<components::WorldRenderState>({});
+    world_.set<components::StatusRenderState>({});
     world_.set<components::NetworkDebugState>({});
     world_.set<ui::UiDocument>({});
     world_.set<ui::UiInputState>({});

@@ -51,6 +51,8 @@ src/
    transitional client screen-state layer and should continue shrinking.
 6. Menu/join UI state now lives in flecs-managed resources and is rendered
    through a built `UiDocument`.
+7. Splash, centered status, and gameplay world drawing now live in dedicated
+   render helpers with a thin render router above them.
 
 ## Current Client Phase Order
 
@@ -81,8 +83,8 @@ src/
   mouse hover/click alongside keyboard/gamepad navigation.
 - Move more client runtime/session state into explicit flecs resources/components
   instead of relying on transitional scene-switch mapping.
-- Split the monolithic render path into separate world, UI, and debug
-  presentation modules.
+- Continue removing the remaining transitional routing from the thin render
+  coordinator once more presentation state is explicit.
 - Decompose the server runtime into narrower session/router/replication-style
   services behind the flecs shell.
 

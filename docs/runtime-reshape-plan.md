@@ -42,6 +42,10 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - `UiBuild` and `UiInteraction` phases now produce/consume a real `UiDocument`
   - keyboard/gamepad navigation now has mouse hover/click parity for those screens
   - menu/join rendering is delegated through a dedicated UI renderer path
+- Phase 4 render decomposition slice is complete:
+  - splash, centered status, gameplay world, and background rendering now live in dedicated render helpers
+  - non-UI status screens use explicit presentation state built during `PresentationBuild`
+  - `RenderSystem` now routes between specialized renderers instead of owning those draw implementations
 
 ## Target Runtime Shape
 
@@ -148,10 +152,13 @@ Goal: make flecs the active runtime architecture for both client and server befo
   - menu/join screen state moved into flecs-managed resources
   - `UiBuild`/`UiInteraction` phases now do real work
   - menu/join rendering now consumes a `UiDocument` through `UiRenderer`
+- Render decomposition slice completed:
+  - non-UI status presentation is built explicitly during `PresentationBuild`
+  - gameplay/status/splash drawing moved out of `RenderSystem` into dedicated helpers
 - Remaining Phase 4 work:
   - move more runtime/session state into explicit flecs resources/components
-  - split gameplay/status/debug rendering into presentation-specific modules
   - continue removing the transitional `RuntimeState + SceneManager` layer
+  - implement the real `Start Server`, `Singleplayer`, and `Options` flows on top of the new UI/presentation structure
 
 ### Changes
 - Introduce `ClientApp` / `ServerApp` composition roots backed by `flecs::world`.

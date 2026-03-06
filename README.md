@@ -145,4 +145,5 @@ cmake -S . -B build `
 - `src/client/modules/` and `src/server/modules/` define explicit runtime phase ordering.
 - `src/client/runtime/` and `src/server/runtime/` currently hold the transitional heavyweight runtime logic.
 - `src/client/ui/` now contains flecs-managed menu/join UI resources, a `UiDocument`, and a dedicated UI renderer.
-- Menu/UI and rendering decomposition are still in progress; gameplay/status/debug presentation is not on the final structure yet.
+- `src/client/render/` now contains dedicated background, splash, status, and gameplay render helpers.
+- State/orchestration decomposition is still in progress; the real placeholder flows are not implemented yet.

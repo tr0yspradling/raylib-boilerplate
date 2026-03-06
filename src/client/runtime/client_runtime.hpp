@@ -110,6 +110,7 @@ private:
     void ReconcileFromSnapshot(const net::SnapshotEntity& localEntity);
 
     [[nodiscard]] components::WorldRenderState BuildWorldRenderState() const;
+    [[nodiscard]] components::StatusRenderState BuildStatusRenderState() const;
     [[nodiscard]] components::NetworkDebugState BuildDebugState() const;
 
     [[nodiscard]] bool IsLocalPlayerReady() const;
