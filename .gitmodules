@@ -22,3 +22,6 @@
 	path = external/flecs
 	url = https://github.com/SanderMertens/flecs.git
 	branch = master
+[submodule "external/GameNetworkingSockets"]
+	path = external/GameNetworkingSockets
+	url = git@github.com:ValveSoftware/GameNetworkingSockets.git
