@@ -36,7 +36,7 @@ target_link_libraries(test_sim_runtime_scene_transitions PRIVATE shared_game)
 
 add_executable(test_sim_client_args sim/client_args.cpp)
 target_include_directories(test_sim_client_args PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(test_sim_client_args PRIVATE shared_game)
+target_link_libraries(test_sim_client_args PRIVATE shared_game argparse::argparse)
 
 add_test(NAME test_net_serializer_roundtrip COMMAND test_net_serializer_roundtrip)
 add_test(NAME test_net_send_policy COMMAND test_net_send_policy)

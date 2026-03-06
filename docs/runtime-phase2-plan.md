@@ -1,5 +1,69 @@
 # Runtime Reshape: Phase 2A Execution Plan
 
+## Maintenance Slice (2026-03-06): Client CLI Argparse Migration
+
+### Current Scope
+- Replace the client's hand-rolled command-line parsing with the `argparse` library.
+- Preserve the existing client flags and defaults:
+  - `--host`
+  - `--port`
+  - `--name`
+  - `--tick-rate`
+  - `--auto-join`
+  - `--skip-splash`
+  - `--help`
+- Keep the Phase 2A runtime/menu behavior unchanged.
+
+### Assumptions
+- This slice only changes the client CLI parser; server parsing remains unchanged.
+- Vendoring a header-only `argparse` dependency under `external/` is acceptable for this repo.
+- Client help output can switch from the current hand-written usage line to library-generated help text.
+
+### Concrete File Touch List
+- `docs/runtime-phase2-plan.md`
+- `docs/context-current.md`
+- `CMakeLists.txt`
+- `external/argparse/include/argparse/argparse.hpp` (new)
+- `external/argparse/LICENSE` (new)
+- `src/client/core/client_args.hpp`
+- `src/client/client_entry.cpp`
+- `tests/CMakeLists.txt`
+- `tests/sim/client_args.cpp`
+
+### Acceptance Criteria
+- Client argument parsing uses `argparse` instead of manual `argv` iteration.
+- Existing flags continue to populate `ClientConfig` correctly.
+- `--help` returns cleanly and prints parser-generated help text.
+- Validation gate passes:
+  - `cmake --build --preset debug -j`
+  - `ctest --preset debug`
+
+### Status
+- Completed.
+
+### Progress Update
+- Completed work:
+  - Scoped the client argparse migration slice and documented intended file touches and acceptance criteria.
+  - Vendored the header-only `argparse` dependency under `external/argparse/`.
+  - Replaced manual client `argv` iteration with `argparse`-based parsing in `src/client/core/client_args.hpp`.
+  - Switched client help output to parser-generated help text and surfaced parse errors with the generated usage text.
+  - Updated the client arg parser test to verify generated help content.
+  - Validated with:
+    - `cmake --build --preset debug -j`
+    - `ctest --preset debug`
+- Changed files:
+  - `docs/runtime-phase2-plan.md`
+  - `docs/context-current.md`
+  - `CMakeLists.txt`
+  - `external/argparse/include/argparse/argparse.hpp`
+  - `external/argparse/LICENSE`
+  - `src/client/core/client_args.hpp`
+  - `src/client/client_entry.cpp`
+  - `tests/CMakeLists.txt`
+  - `tests/sim/client_args.cpp`
+- Remaining risks/blockers:
+  - None for this slice.
+
 ## Scope
 Implement the menu-first runtime slice only:
 - startup defaults to splash -> menu (no eager connect)

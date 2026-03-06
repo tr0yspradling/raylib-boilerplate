@@ -23,6 +23,15 @@ function(apply_project_warnings target_name)
     endif()
 endfunction()
 
+set(ARGPARSE_INCLUDE_DIR ${EXTERNAL_DIR}/argparse/include)
+if(NOT EXISTS ${ARGPARSE_INCLUDE_DIR}/argparse/argparse.hpp)
+    message(FATAL_ERROR "argparse not found. Provide external/argparse.")
+endif()
+
+add_library(argparse_vendor INTERFACE)
+target_include_directories(argparse_vendor INTERFACE ${ARGPARSE_INCLUDE_DIR})
+add_library(argparse::argparse ALIAS argparse_vendor)
+
 set(NEEDS_RAYLIB OFF)
 if(BUILD_GAME_CLIENT OR BUILD_LEGACY_SCENE_APP)
     set(NEEDS_RAYLIB ON)
@@ -173,7 +182,7 @@ if(BUILD_GAME_CLIENT)
         src/client/ui/debug_overlay.hpp
     )
     target_include_directories(client_runtime PUBLIC ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(client_runtime PUBLIC shared_game shared_net raylib_cpp)
+    target_link_libraries(client_runtime PUBLIC shared_game shared_net raylib_cpp argparse::argparse)
     apply_project_warnings(client_runtime)
 
     add_executable(game_client src/client/main.cpp)

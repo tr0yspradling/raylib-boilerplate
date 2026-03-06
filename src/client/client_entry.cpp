@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <iostream>
+#include <string>
 #include <utility>
 
 #include "client/core/client_args.hpp"
@@ -11,10 +12,19 @@ namespace client {
 
 int RunClientEntry(int argc, char** argv) {
     try {
-        const core::ParsedClientArgs parsed = core::ParseClientArgs(argc, argv);
+        const std::string programName = argc > 0 && argv != nullptr && argv[0] != nullptr ? argv[0] : "game_client";
+
+        core::ParsedClientArgs parsed{};
+        try {
+            parsed = core::ParseClientArgs(argc, argv);
+        } catch (const std::exception& exception) {
+            std::cerr << exception.what() << '\n';
+            std::cerr << core::ClientArgHelpText(programName);
+            return 1;
+        }
+
         if (parsed.showHelp) {
-            std::cout
-                << "Usage: [--host HOST] [--port PORT] [--name PLAYER] [--tick-rate HZ] [--auto-join] [--skip-splash]\n";
+            std::cout << core::ClientArgHelpText(programName);
             return 0;
         }
 

@@ -30,6 +30,10 @@ Last updated: 2026-03-06
   - menu model selection wrap + action labels
   - runtime scene transition mapping
   - client argument parsing for new startup flags
+- Migrated client CLI parsing from manual `argv` iteration to vendored `argparse`:
+  - parser-generated `--help` output
+  - consistent parse error handling + usage text
+  - vendored header-only dependency under `external/argparse/`
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
