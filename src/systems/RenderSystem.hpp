@@ -3,7 +3,7 @@
 #include <flecs.h>
 #include <raylib-cpp.hpp>
 
-#include "../components/Components.hpp"
+#include "components/Components.hpp"
 
 namespace systems {
 

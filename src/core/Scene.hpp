@@ -3,7 +3,7 @@
 #include <raylib-cpp.hpp>
 #include <string_view>
 
-#include "../input/InputManager.hpp"
+#include "input/InputManager.hpp"
 
 class SceneManager;
 
@@ -23,5 +23,6 @@ public:
     virtual void Update(SceneContext&, float dt) = 0;
     virtual void Draw(SceneContext&) = 0;
     [[nodiscard]] virtual bool AllowsPause() const { return true; }
+    [[nodiscard]] virtual bool IsPaused() const { return false; }
     virtual std::string_view Name() const = 0;
 };

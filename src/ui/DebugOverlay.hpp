@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <raylib-cpp.hpp>
 
-#include "../core/SceneManager.hpp"
+#include "core/SceneManager.hpp"
 
 namespace ui {
 

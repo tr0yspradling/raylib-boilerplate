@@ -4,7 +4,7 @@
 #include <array>
 #include <string>
 
-#include "../core/Scene.hpp"
+#include "core/Scene.hpp"
 
 class MenuScene : public Scene {
 public:
@@ -71,7 +71,7 @@ public:
                                                        static_cast<int>(center.y) + 110, 22);
         }
 
-        raylib::Color{120, 145, 170, 255}.DrawText("Tab debug  |  Ctrl+F fullscreen  |  P pause (in sandbox)",
+        raylib::Color{120, 145, 170, 255}.DrawText("Tab debug  |  Ctrl+F fullscreen  |  Esc/P pause menu (in sandbox)",
                                                    static_cast<int>(center.x) - 300, static_cast<int>(center.y) + 170,
                                                    20);
     }

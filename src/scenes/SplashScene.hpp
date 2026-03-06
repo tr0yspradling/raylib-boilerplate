@@ -4,7 +4,7 @@
 #include <cmath>
 #include <string_view>
 
-#include "../core/Scene.hpp"
+#include "core/Scene.hpp"
 
 class SplashScene : public Scene {
 public:
@@ -12,7 +12,7 @@ public:
 
     void Update(SceneContext& context, float dt) override {
         elapsed_ += dt;
-        if (elapsed_ >= 1.6f || context.input.SelectPressed()) {
+        if (context.input.SelectPressed()) {
             context.manager.SwitchTo("menu");
         }
     }

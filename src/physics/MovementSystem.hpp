@@ -5,7 +5,7 @@
 #include <flecs.h>
 #include <numbers>
 
-#include "../components/Components.hpp"
+#include "components/Components.hpp"
 
 namespace physics {
 

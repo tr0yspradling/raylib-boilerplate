@@ -123,21 +123,15 @@ elseif (TARGET flecs_static)
 endif()
 
 # Executable
-add_executable(raylib_boilerplate
-    src/main.cpp
-    src/components/Components.hpp
-    src/core/Application.hpp
-    src/core/Config.hpp
-    src/core/Scene.hpp
-    src/core/SceneManager.hpp
-    src/input/InputManager.hpp
-    src/physics/MovementSystem.hpp
-    src/scenes/MenuScene.hpp
-    src/scenes/SplashScene.hpp
-    src/scenes/SandboxScene.hpp
-    src/systems/RenderSystem.hpp
-    src/ui/DebugOverlay.hpp
+add_executable(raylib_boilerplate)
+
+# Keep all project sources/headers attached to the app target for IDE integration.
+file(GLOB_RECURSE RAYLIB_BOILERPLATE_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/*.hpp
 )
+target_sources(raylib_boilerplate PRIVATE ${RAYLIB_BOILERPLATE_SOURCES})
+source_group(TREE ${CMAKE_SOURCE_DIR}/src PREFIX src FILES ${RAYLIB_BOILERPLATE_SOURCES})
 
 target_include_directories(raylib_boilerplate
     PRIVATE
