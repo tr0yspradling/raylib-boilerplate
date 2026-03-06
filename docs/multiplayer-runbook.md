@@ -4,43 +4,81 @@ Runtime/menu reshape implementation plan: `docs/runtime-reshape-plan.md`.
 Object atlas pipeline implementation plan: `docs/object-atlas-pipeline-plan.md`.
 
 ## Prerequisites
-Ubuntu/Debian packages:
+
+### macOS (Homebrew)
+
+```bash
+brew install cmake ninja pkg-config openssl protobuf abseil
+```
+
+### Linux (Ubuntu/Debian)
+
 ```bash
 sudo apt-get update
-sudo apt-get install -y libssl-dev libprotobuf-dev protobuf-compiler
+sudo apt-get install -y \
+  build-essential cmake ninja-build pkg-config \
+  libssl-dev protobuf-compiler libprotobuf-dev libabsl-dev \
+  libasound2-dev libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev \
+  libgl1-mesa-dev libwayland-dev libxkbcommon-dev
+```
+
+### Windows (MSVC + vcpkg)
+
+Install:
+- Visual Studio 2022 (`Desktop development with C++`)
+- CMake + Ninja (or Visual Studio generator)
+- vcpkg
+
+Install native deps:
+
+```powershell
+vcpkg install openssl protobuf abseil --triplet x64-windows
+```
+
+Configure with toolchain:
+
+```powershell
+cmake -S . -B build/debug `
+  -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake `
+  -DVCPKG_TARGET_TRIPLET=x64-windows
 ```
 
 ## Build (Preferred Profile)
-Configure:
+Configure (CMake preset):
 ```bash
-cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+cmake --preset debug
 ```
-Build:
+Build (single-config generators):
 ```bash
-cmake --build cmake-build-debug -j
+cmake --build --preset debug -j
+```
+Build (multi-config generators like Visual Studio):
+```bash
+cmake --build --preset debug --config Debug
 ```
 Run tests:
 ```bash
-cd cmake-build-debug
-ctest --output-on-failure
+ctest --preset debug
 ```
+JetBrains/CLion:
+- Use preset-backed CMake profiles (`debug`, `release`) to keep profile target matrices and generated files under `build/<profile>/`.
 
 ## Run Dedicated Server
 Default config file: `src/server/config/server.cfg`
 
 Start server:
 ```bash
-./cmake-build-debug/game_server --port 27020 --tick-rate 30 --snapshot-rate 15
+./build/debug/game_server --port 27020 --tick-rate 30 --snapshot-rate 15
 ```
 
 ## Run Local Clients
 Client 1:
 ```bash
-./cmake-build-debug/game_client --host 127.0.0.1 --port 27020 --name alice
+./build/debug/game_client --host 127.0.0.1 --port 27020 --name alice
 ```
 Client 2:
 ```bash
-./cmake-build-debug/game_client --host 127.0.0.1 --port 27020 --name bob
+./build/debug/game_client --host 127.0.0.1 --port 27020 --name bob
 ```
 
 ## Controls

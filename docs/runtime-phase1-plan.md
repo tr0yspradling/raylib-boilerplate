@@ -1,5 +1,50 @@
 # Runtime Reshape: Phase 1 Execution Plan
 
+## Maintenance Slice (2026-03-06): Build Root Consolidation
+
+### Current Scope
+- Standardize local and IDE build output roots under `build/`.
+- Move preferred debug workflow from `cmake-build-debug` to `build/debug`.
+- Ensure JetBrains/CLion target matrix can live under `build/<profile>` through CMake presets.
+
+### Assumptions
+- CMake 3.23+ is available (project minimum) and supports presets.
+- JetBrains/CLion users will select preset-backed profiles (`debug`, `release`) for consistent output paths.
+- No runtime architecture behavior changes are required for this slice.
+
+### Concrete File Touch List
+- `CMakePresets.json` (new)
+- `AGENTS.md`
+- `README.md`
+- `LIVE_TESTING_GUIDE.md`
+- `docs/multiplayer-runbook.md`
+- `docs/context-current.md`
+- `docs/runtime-phase1-plan.md`
+
+### Acceptance Criteria
+- `cmake --preset debug` configures into `build/debug`.
+- `cmake --build --preset debug -j` and `ctest --preset debug` pass.
+- Run/build/test docs consistently treat `build/` as the root for profile outputs.
+
+### Status
+- Completed.
+
+### Progress Update
+- Completed work:
+  - Added `CMakePresets.json` with `debug` and `release` presets rooted at `build/<preset>`.
+  - Updated build/test/run docs to use preset commands and `build/debug` runtime paths.
+  - Updated agent workflow expectations to validate with `cmake --build --preset debug -j` and `ctest --preset debug`.
+- Changed files:
+  - `CMakePresets.json`
+  - `AGENTS.md`
+  - `README.md`
+  - `LIVE_TESTING_GUIDE.md`
+  - `docs/multiplayer-runbook.md`
+  - `docs/context-current.md`
+  - `docs/runtime-phase1-plan.md`
+- Remaining risks/blockers:
+  - JetBrains users on legacy non-preset profiles may continue writing to `cmake-build-*` until they switch profile source to presets.
+
 ## Scope
 Implement the runtime/scene foundation only:
 - explicit runtime state model
@@ -69,9 +114,9 @@ Implement the runtime/scene foundation only:
 
 ## Step 6: Build + Test + Smoke
 - Build:
-  - `cmake --build cmake-build-debug -j`
+  - `cmake --build --preset debug -j`
 - Tests:
-  - `ctest --test-dir cmake-build-debug --output-on-failure`
+  - `ctest --preset debug`
 - Manual smoke:
   - launch client and verify scene text changes still work for connect/disconnect flow.
 

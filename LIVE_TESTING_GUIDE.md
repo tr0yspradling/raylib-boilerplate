@@ -7,12 +7,12 @@ the boilerplate to make sure the basics still work.
 
 ```bash
 git submodule update --init --recursive
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j
-./build/game_client
+cmake --preset debug
+cmake --build --preset debug -j
+./build/debug/game_client
 ```
 
-For CLion/IDE builds the run target is `game_client`.
+For CLion/IDE builds, use the `debug` preset profile so generated files and target matrix output stay under `build/debug`.
 
 ## Manual Test Pass
 
@@ -34,10 +34,13 @@ For CLion/IDE builds the run target is `game_client`.
 
 ```bash
 # Rebuild after a clean-up
-cmake --build build -j --target game_client
+cmake --build --preset debug -j --target game_client
 
-# Remove build directory
-rm -rf build
+# Run tests
+ctest --preset debug
+
+# Remove generated build profiles
+rm -rf build/debug build/release
 ```
 
 ## Troubleshooting

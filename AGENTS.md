@@ -6,22 +6,27 @@ Single source of truth for OpenAI agents and Claude Code. Link or symlink `CLAUD
 
 ## Build, Run, Test
 
-**Preferred debug profile (`cmake-build-debug`)**
+**Preferred preset matrix root (`build/<preset>`)**
 
-- Configure: `cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug`
-- Build: `cmake --build cmake-build-debug -j`
-- Run client: `./cmake-build-debug/game_client`
-- Run server: `./cmake-build-debug/game_server`
-- Test: `ctest --test-dir cmake-build-debug --output-on-failure`
-- Clean: `cmake --build cmake-build-debug --target clean`
+- Configure debug: `cmake --preset debug`
+- Build debug: `cmake --build --preset debug -j`
+- Run client (single-config): `./build/debug/game_client`
+- Run server (single-config): `./build/debug/game_server`
+- Test debug: `ctest --preset debug`
+- Clean debug: `cmake --build --preset debug --target clean`
 
-**Canonical out-of-source alternative (`build`)**
+**Direct out-of-source equivalent (without presets)**
 
-- Configure: `cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug`
-- Build: `cmake --build build -j`
-- Run client: `./build/game_client`
-- Run server: `./build/game_server`
-- Test: `ctest --test-dir build --output-on-failure`
+- Configure: `cmake -S . -B build/debug -DCMAKE_BUILD_TYPE=Debug`
+- Build: `cmake --build build/debug -j`
+- Run client: `./build/debug/game_client`
+- Run server: `./build/debug/game_server`
+- Test: `ctest --test-dir build/debug --output-on-failure`
+
+**JetBrains / CLion**
+
+- Use CMake preset-backed profiles (`debug`, `release`).
+- Profile target matrices and generated files stay under `build/<profile>/`.
 
 **Compatibility target**
 
@@ -139,8 +144,8 @@ Maintain these as living documents:
 
 - Prefer automated checks via CTest targets under `tests/`.
 - Minimum phase validation:
-  - `cmake --build cmake-build-debug -j`
-  - `ctest --test-dir cmake-build-debug --output-on-failure`
+  - `cmake --build --preset debug -j`
+  - `ctest --preset debug`
 - For runtime-flow changes, also perform brief manual smoke checks.
 
 ---
@@ -155,7 +160,8 @@ Maintain these as living documents:
 
 ## Platform Notes
 
-- Ensure raylib dev files are installed locally.
-- Ubuntu example: `sudo apt install libraylib-dev`.
-- macOS example: `brew install raylib`.
-- Linux links: `m`, `pthread`, `GL`, `dl`, `X11`.
+- Core third-party libs are vendored in `external/`; system packages are still needed for toolchains and native crypto/protobuf deps.
+- macOS (Homebrew): `brew install cmake ninja pkg-config openssl protobuf abseil`.
+- Ubuntu/Debian: `sudo apt install build-essential cmake ninja-build pkg-config libssl-dev protobuf-compiler libprotobuf-dev libabsl-dev`.
+- Windows (MSVC): install `openssl`, `protobuf`, and `abseil` via `vcpkg` and configure with the vcpkg toolchain file.
+- Linux desktop links include `m`, `pthread`, `GL`, `dl`, and `X11` families.

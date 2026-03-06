@@ -1,10 +1,10 @@
 # Context Current
 
-Last updated: 2026-03-05
+Last updated: 2026-03-06
 
 ## Current Focus
 - Runtime reshape for client flow: splash -> main menu -> mode-specific paths.
-- Phase 1 foundation completed (runtime state + scene taxonomy + transition routing).
+- Build/tooling layout standardized so profile outputs live under `build/`.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -15,15 +15,21 @@ Last updated: 2026-03-05
   - expanded `SceneKind` set for upcoming menu flow
   - `Application::UpdateScene(...)` now uses runtime state
   - `GameClient` now refreshes and applies runtime-state-driven scenes
+- Added CMake preset profile matrix:
+  - `debug` -> `build/debug`
+  - `release` -> `build/release`
+- Updated build/run/test docs (`AGENTS.md`, `README.md`, `LIVE_TESTING_GUIDE.md`, `docs/multiplayer-runbook.md`) to use preset workflow and `build/` root paths.
 
 ## Validation Status
-- Build: `cmake --build cmake-build-debug -j` passing.
-- Tests: `ctest --test-dir cmake-build-debug --output-on-failure` passing (`7/7`).
+- Configure: `cmake --preset debug` passing (`build/debug` generated).
+- Build: `cmake --build --preset debug -j` passing.
+- Tests: `ctest --preset debug` passing (`7/7`).
 
 ## Open Risks / Gaps
 - Main menu is not interactive yet (Phase 2).
 - Join/start-server/singleplayer/options actions are scaffolded but not wired to UI flow.
 - No phase-specific tests yet for runtime scene transition logic.
+- Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
 ## Active Plan Docs
 - `docs/runtime-reshape-plan.md`
