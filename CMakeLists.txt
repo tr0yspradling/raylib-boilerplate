@@ -236,6 +236,8 @@ if(BUILD_GAME_CLIENT)
         src/client/runtime/client_runtime.hpp
         src/client/runtime/multiplayer_session_service.cpp
         src/client/runtime/multiplayer_session_service.hpp
+        src/client/runtime/options_service.cpp
+        src/client/runtime/options_service.hpp
         src/client/runtime/singleplayer_session_service.cpp
         src/client/runtime/singleplayer_session_service.hpp
         src/client/scenes/menu_scene.hpp

@@ -19,6 +19,7 @@
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
 #include "client/runtime/multiplayer_session_service.hpp"
+#include "client/runtime/options_service.hpp"
 #include "client/runtime/runtime_resources.hpp"
 #include "client/runtime/singleplayer_session_service.hpp"
 #include "client/systems/render_system.hpp"
@@ -75,7 +76,6 @@ class ClientRuntime {
         [[nodiscard]] bool EnsureTransportInitialized(std::string& error);
         [[nodiscard]] bool BeginConnectionAttempt(std::string& error);
         bool ApplyJoinFormToConfig(const ui::JoinServerScreenState& joinScreenState);
-        bool ApplyOptionsToConfig(flecs::world world, ui::OptionsScreenState& optionsScreenState);
         void ReturnToMenu(flecs::world world, std::string statusMessage = {});
         void FailLocalServerStartup(flecs::world world, const std::string& message);
         void StopOwnedLocalServer();
@@ -120,6 +120,7 @@ class ClientRuntime {
 
         game::FixedStep fixedStep_;
         MultiplayerSessionService multiplayerSession_;
+        OptionsService optionsService_;
         input::InputManager inputManager_{};
         SingleplayerSessionService singleplayerSession_;
 };

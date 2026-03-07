@@ -487,7 +487,20 @@ bool ClientRuntime::Initialize(flecs::world world) {
                     optionsScreenState.debugOverlayDefault = !optionsScreenState.debugOverlayDefault;
                     break;
                 case ui::UiCommandType::SaveOptions:
-                    if (ApplyOptionsToConfig(world, optionsScreenState)) {
+                    {
+                        OptionsApplyResult result = optionsService_.Apply(
+                            optionsScreenState, config_, joinScreenState, flow.debugOverlayEnabled,
+                            window_.has_value()
+                                ? ApplyWindowSettingsFn{[](int width, int height, int targetFps) {
+                                      ::SetWindowSize(width, height);
+                                      ::SetTargetFPS(targetFps);
+                                  }}
+                                : ApplyWindowSettingsFn{});
+                        flow.statusMessage = result.statusMessage;
+                        if (!result.success) {
+                            break;
+                        }
+
                         const size_t selectedIndex = optionsScreenState.SelectedIndex();
                         optionsScreenState.ResetFromConfig(config_);
                         optionsScreenState.SetSelectedIndex(selectedIndex);
@@ -874,82 +887,6 @@ bool ClientRuntime::Initialize(flecs::world world) {
         config_.serverHost = joinScreenState.host;
         config_.serverPort = static_cast<uint16_t>(parsedPort);
         config_.playerName = joinScreenState.playerName;
-        return true;
-    }
-
-    bool ClientRuntime::ApplyOptionsToConfig(flecs::world world, ui::OptionsScreenState& optionsScreenState) {
-        ClientFlowState& flow = world.get_mut<ClientFlowState>();
-        auto parseNumber = [&flow](const std::string& value, int minimum, int maximum, const char* label,
-                                   int& out) -> bool {
-            if (value.empty()) {
-                flow.statusMessage = std::string{label} + " is required";
-                return false;
-            }
-
-            const char* begin = value.data();
-            const char* end = begin + value.size();
-            const auto [ptr, error] = std::from_chars(begin, end, out);
-            if (error != std::errc{} || ptr != end || out < minimum || out > maximum) {
-                flow.statusMessage = std::string{label} + " must be between " + std::to_string(minimum) + " and " +
-                    std::to_string(maximum);
-                return false;
-            }
-
-            return true;
-        };
-
-        if (optionsScreenState.playerName.empty()) {
-            flow.statusMessage = "Player name is required";
-            return false;
-        }
-        if (optionsScreenState.host.empty()) {
-            flow.statusMessage = "Default host is required";
-            return false;
-        }
-
-        int parsedPort = 0;
-        int parsedWindowWidth = 0;
-        int parsedWindowHeight = 0;
-        int parsedTargetFps = 0;
-        int parsedInterpolationDelay = 0;
-        if (!parseNumber(optionsScreenState.port, 1, 65535, "Default port", parsedPort) ||
-            !parseNumber(optionsScreenState.windowWidth, 640, 3840, "Window width", parsedWindowWidth) ||
-            !parseNumber(optionsScreenState.windowHeight, 360, 2160, "Window height", parsedWindowHeight) ||
-            !parseNumber(optionsScreenState.targetFps, 30, 360, "Target FPS", parsedTargetFps) ||
-            !parseNumber(optionsScreenState.interpolationDelay, 0, 10, "Interpolation delay",
-                         parsedInterpolationDelay)) {
-            return false;
-        }
-
-        config_.playerName = optionsScreenState.playerName;
-        config_.serverHost = optionsScreenState.host;
-        config_.serverPort = static_cast<uint16_t>(parsedPort);
-        config_.windowWidth = parsedWindowWidth;
-        config_.windowHeight = parsedWindowHeight;
-        config_.targetFps = parsedTargetFps;
-        config_.interpolationDelayTicks = parsedInterpolationDelay;
-        config_.debugOverlayDefault = optionsScreenState.debugOverlayDefault;
-
-        if (window_.has_value()) {
-            ::SetWindowSize(config_.windowWidth, config_.windowHeight);
-            ::SetTargetFPS(config_.targetFps);
-        }
-        flow.debugOverlayEnabled = config_.debugOverlayDefault;
-
-        world.get_mut<ui::JoinServerScreenState>().ResetFromDefaults(config_.serverHost, config_.serverPort,
-                                                                     config_.playerName);
-
-        std::string saveError;
-        const std::filesystem::path configPath = config_.configFilePath.empty()
-            ? core::DefaultClientConfigPath()
-            : std::filesystem::path{config_.configFilePath};
-        config_.configFilePath = configPath.string();
-        if (!core::SaveClientConfigFile(config_, configPath, saveError)) {
-            flow.statusMessage = "Save failed: " + saveError;
-            return false;
-        }
-
-        flow.statusMessage = "Saved client preferences to " + configPath.string();
         return true;
     }
 

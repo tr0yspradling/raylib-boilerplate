@@ -70,6 +70,9 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 12 singleplayer-session-service slice is complete:
   - `ClientRuntime` now delegates singleplayer start/stop/step logic to `runtime::SingleplayerSessionService`
   - singleplayer gameplay state continues to publish through `runtime::ClientSessionState`
+- Phase 13 options-service slice is complete:
+  - `ClientRuntime` now delegates option validation, config mutation, persistence, and live-safe application through `runtime::OptionsService`
+  - UI options state remains flecs-managed, while persistence/application no longer lives inline in `ClientRuntime`
 
 ## Target Runtime Shape
 
@@ -380,10 +383,10 @@ Goal: move singleplayer runtime ownership and stepping out of `ClientRuntime` in
 Goal: move options persistence/application out of `ClientRuntime` into a dedicated service boundary.
 
 ### Current Status (2026-03-07)
-- Planned.
-- Target behavior:
-  - `ClientRuntime` delegates option validation, config mutation, persistence, and live-safe application through a dedicated service
-  - UI options state remains flecs-managed, while persistence/application stop living inline in `ClientRuntime`
+- Completed for the next decomposition slice.
+- Delivered behavior:
+  - `ClientRuntime` now delegates option validation, config mutation, persistence, and live-safe application through `runtime::OptionsService`
+  - UI options state remains flecs-managed, while persistence/application no longer lives inline in `ClientRuntime`
 
 ## Phase 14: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.

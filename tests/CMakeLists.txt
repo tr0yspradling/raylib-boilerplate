@@ -87,6 +87,14 @@ add_executable(test_sim_singleplayer_session_service
 target_include_directories(test_sim_singleplayer_session_service PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_singleplayer_session_service PRIVATE shared_game)
 
+add_executable(test_sim_options_service
+    sim/options_service.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/runtime/options_service.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/core/config.cpp
+)
+target_include_directories(test_sim_options_service PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_options_service PRIVATE shared_game)
+
 add_executable(test_sim_client_runtime_flow_resources sim/client_runtime_flow_resources.cpp)
 target_include_directories(test_sim_client_runtime_flow_resources PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_client_runtime_flow_resources PRIVATE shared_game)
@@ -121,6 +129,7 @@ add_test(NAME test_sim_client_config_file COMMAND test_sim_client_config_file)
 add_test(NAME test_sim_server_launcher_process COMMAND test_sim_server_launcher_process)
 add_test(NAME test_sim_singleplayer_runtime COMMAND test_sim_singleplayer_runtime)
 add_test(NAME test_sim_singleplayer_session_service COMMAND test_sim_singleplayer_session_service)
+add_test(NAME test_sim_options_service COMMAND test_sim_options_service)
 add_test(NAME test_sim_client_runtime_flow_resources COMMAND test_sim_client_runtime_flow_resources)
 add_test(NAME test_sim_client_session_resources COMMAND test_sim_client_session_resources)
 add_test(NAME test_sim_client_multiplayer_session_service COMMAND test_sim_client_multiplayer_session_service)
