@@ -55,6 +55,9 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - `Options` now renders through the UI/document path instead of a placeholder status card
   - client preferences persist in `client_data/client.cfg`
   - explicit CLI args override saved preferences on startup
+- Phase 8 client flow-resource slice is complete:
+  - runtime flow ownership now lives in explicit flecs resources instead of `ClientRuntime` fields
+  - local dedicated startup state and disconnect/status text are now part of that world-owned control layer
 
 ## Target Runtime Shape
 
@@ -261,7 +264,30 @@ Goal: expose runtime/network/video/gameplay options.
 - Updated settings apply at runtime where possible.
 - Persisted settings load on next launch.
 
-## Phase 8: Runtime Polish, Safety, and Testability
+## Phase 8: Client Flow Resources
+Goal: move runtime control ownership from `ClientRuntime` fields into explicit flecs-managed resources.
+
+### Current Status (2026-03-06)
+- Completed for the first ownership cleanup slice.
+- Delivered behavior:
+  - runtime mode, splash completion, requested actions, status/disconnect text, debug overlay toggle, and local dedicated startup ownership/retry state are now stored on the client world
+  - `ClientRuntime` now reads/writes those resources instead of maintaining duplicate internal control state
+  - disconnect-return to menu now preserves the reason text as menu status
+- Follow-up still open:
+  - transport/session mechanics and singleplayer stepping still live inside `ClientRuntime`
+  - transitional `SceneManager` bridging is still present
+
+### Changes
+- Add explicit client-world resources for runtime flow and local dedicated startup control.
+- Update `ClientRuntime` to use flecs-owned resources as the source of truth for flow/status/disconnect/debug state.
+- Add focused coverage for the resource-backed flow transition rules and menu-return status behavior.
+
+### Acceptance
+- Client flow control data is owned by flecs resources instead of `ClientRuntime` fields.
+- Existing menu, join, local dedicated, singleplayer, and options flows continue to work.
+- Returning from `Disconnected` to the menu preserves the disconnect reason as surfaced status text.
+
+## Phase 9: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.
 
 ### Changes

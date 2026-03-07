@@ -18,6 +18,8 @@ bool ClientApp::Initialize() {
     world_.set<ui::MenuScreenState>({});
     world_.set<ui::JoinServerScreenState>({});
     world_.set<ui::ScreenState>({});
+    world_.set<runtime::ClientFlowState>({});
+    world_.set<runtime::LocalServerStartupState>({});
     world_.import<modules::ClientRuntimeModule>();
 
     initialized_ = runtime_.Initialize(world_);

@@ -22,78 +22,62 @@ struct ClientRuntimeModule {
         world.module<ClientRuntimeModule>();
         RegisterClientPhases(world);
         world.component<ClientRuntimeRef>();
+        world.component<runtime::ClientFlowState>();
+        world.component<runtime::LocalServerStartupState>();
 
-        world.system("ClientCaptureInput")
-            .kind(EnsureInputCapturePhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->CaptureInput(it.world());
-                }
-            });
+        world.system("ClientCaptureInput").kind(EnsureInputCapturePhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->CaptureInput(it.world());
+            }
+        });
 
-        world.system("ClientRuntimeIntent")
-            .kind(EnsureRuntimeIntentPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->ProcessRuntimeIntent(it.world());
-                }
-            });
+        world.system("ClientRuntimeIntent").kind(EnsureRuntimeIntentPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->ProcessRuntimeIntent(it.world());
+            }
+        });
 
-        world.system("ClientUiBuild")
-            .kind(EnsureUiBuildPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->BuildUiState(it.world());
-                }
-            });
+        world.system("ClientUiBuild").kind(EnsureUiBuildPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->BuildUiState(it.world());
+            }
+        });
 
-        world.system("ClientUiInteraction")
-            .kind(EnsureUiInteractionPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->HandleUiInteraction(it.world());
-                }
-            });
+        world.system("ClientUiInteraction").kind(EnsureUiInteractionPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->HandleUiInteraction(it.world());
+            }
+        });
 
-        world.system("ClientTransportPoll")
-            .kind(EnsureTransportPollPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->PollTransport();
-                }
-            });
+        world.system("ClientTransportPoll").kind(EnsureTransportPollPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->PollTransport();
+            }
+        });
 
-        world.system("ClientSessionUpdate")
-            .kind(EnsureSessionUpdatePhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->RefreshSessionState(it.world());
-                }
-            });
+        world.system("ClientSessionUpdate").kind(EnsureSessionUpdatePhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->RefreshSessionState(it.world());
+            }
+        });
 
-        world.system("ClientPrediction")
-            .kind(EnsurePredictionPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->AdvancePrediction(static_cast<float>(it.delta_time()));
-                }
-            });
+        world.system("ClientPrediction").kind(EnsurePredictionPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->AdvancePrediction(static_cast<float>(it.delta_time()));
+            }
+        });
 
-        world.system("ClientPresentationBuild")
-            .kind(EnsurePresentationBuildPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->PublishPresentation(it.world(), static_cast<float>(it.delta_time()));
-                }
-            });
+        world.system("ClientPresentationBuild").kind(EnsurePresentationBuildPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->PublishPresentation(it.world(), static_cast<float>(it.delta_time()));
+            }
+        });
 
-        world.system("ClientRender")
-            .kind(EnsureRenderPhase(world))
-            .run([](flecs::iter& it) {
-                if (auto* runtime = ResolveClientRuntime(it.world())) {
-                    runtime->RenderPublishedFrame(it.world());
-                }
-            });
+        world.system("ClientRender").kind(EnsureRenderPhase(world)).run([](flecs::iter& it) {
+            if (auto* runtime = ResolveClientRuntime(it.world())) {
+                runtime->RenderPublishedFrame(it.world());
+            }
+        });
     }
 };
 

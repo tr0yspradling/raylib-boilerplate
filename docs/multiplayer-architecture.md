@@ -39,6 +39,9 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
   - `Metrics`
 - Current implementation keeps most business logic inside the runtime service classes while phase ordering and composition are handled by flecs. Deeper state decomposition into ECS resources/components is a planned follow-up.
 - Menu/join screen state, input snapshots, UI interaction state, and queued UI commands now live as flecs-managed resources on the client world.
+- Runtime control flow now also lives on the client world through explicit resources:
+  - `runtime::ClientFlowState` owns runtime mode, splash completion, requested actions, status/disconnect text, and debug overlay toggle
+  - `runtime::LocalServerStartupState` owns local dedicated startup ownership/retry timing
 - Non-UI status presentation is now built explicitly during `PresentationBuild`, and concrete drawing is split across dedicated render helpers.
 - Local dedicated startup now routes through `src/client/core/server_launcher.*`, which launches a sibling `game_server` process and retries localhost connect until the dedicated server is ready or startup is canceled/timed out.
 - Singleplayer now routes through `src/client/core/singleplayer_runtime.*`, which wraps the shared deterministic sim in a transport-free local authoritative sandbox path.
@@ -121,6 +124,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - `src/client/app/`: `ClientApp` composition root and frame loop.
 - `src/client/modules/`: client flecs phase declarations and runtime module registration.
 - `src/client/runtime/`: heavyweight client runtime behavior, still transitional while state is decomposed further.
+- `src/client/runtime/runtime_resources.hpp`: client-world flow/control resources and transition helpers.
 - `src/client/components/`: render/debug presentation state published into the client world.
 - `src/client/core/`: transitional runtime state, command enums, and scene mapping.
 - `src/client/core/server_launcher.*`: local dedicated launcher abstraction + process implementation used by the current `Start Server` flow.
