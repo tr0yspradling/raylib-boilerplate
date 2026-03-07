@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "client/core/client_config.hpp"
 #include "client/core/menu_model.hpp"
 #include "client/core/runtime_state.hpp"
 #include "client/core/scene.hpp"
@@ -25,6 +26,16 @@ enum class UiWidgetId : uint8_t {
     JoinName,
     JoinConnect,
     JoinBack,
+    OptionsPlayerName,
+    OptionsHost,
+    OptionsPort,
+    OptionsWindowWidth,
+    OptionsWindowHeight,
+    OptionsTargetFps,
+    OptionsInterpolationDelay,
+    OptionsDebugOverlay,
+    OptionsSave,
+    OptionsBack,
 };
 
 struct ScreenState {
@@ -112,6 +123,89 @@ private:
     size_t selectedIndex_ = 0U;
 };
 
+enum class OptionsField : uint8_t {
+    PlayerName = 0,
+    Host,
+    Port,
+    WindowWidth,
+    WindowHeight,
+    TargetFps,
+    InterpolationDelay,
+    DebugOverlay,
+    Save,
+    Back,
+};
+
+class OptionsScreenState {
+public:
+    static constexpr std::array<OptionsField, 10> kFields{
+        OptionsField::PlayerName,
+        OptionsField::Host,
+        OptionsField::Port,
+        OptionsField::WindowWidth,
+        OptionsField::WindowHeight,
+        OptionsField::TargetFps,
+        OptionsField::InterpolationDelay,
+        OptionsField::DebugOverlay,
+        OptionsField::Save,
+        OptionsField::Back,
+    };
+
+    void ResetFromConfig(const client::ClientConfig& config) {
+        playerName = config.playerName;
+        host = config.serverHost;
+        port = std::to_string(config.serverPort);
+        windowWidth = std::to_string(config.windowWidth);
+        windowHeight = std::to_string(config.windowHeight);
+        targetFps = std::to_string(config.targetFps);
+        interpolationDelay = std::to_string(config.interpolationDelayTicks);
+        debugOverlayDefault = config.debugOverlayDefault;
+        selectedIndex_ = 0U;
+        editing = false;
+    }
+
+    [[nodiscard]] size_t SelectedIndex() const { return selectedIndex_; }
+    [[nodiscard]] OptionsField SelectedField() const { return kFields[selectedIndex_]; }
+
+    void MoveNext() { selectedIndex_ = (selectedIndex_ + 1U) % kFields.size(); }
+
+    void MovePrevious() { selectedIndex_ = selectedIndex_ == 0U ? (kFields.size() - 1U) : (selectedIndex_ - 1U); }
+
+    void SetSelectedIndex(size_t index) {
+        if (index < kFields.size()) {
+            selectedIndex_ = index;
+        }
+    }
+
+    [[nodiscard]] bool SelectedFieldIsEditable() const {
+        return IsEditableField(SelectedField());
+    }
+
+    [[nodiscard]] static bool IsEditableField(OptionsField field) {
+        return field == OptionsField::PlayerName || field == OptionsField::Host || field == OptionsField::Port ||
+            field == OptionsField::WindowWidth || field == OptionsField::WindowHeight ||
+            field == OptionsField::TargetFps || field == OptionsField::InterpolationDelay;
+    }
+
+    [[nodiscard]] static bool IsNumericField(OptionsField field) {
+        return field == OptionsField::Port || field == OptionsField::WindowWidth || field == OptionsField::WindowHeight ||
+            field == OptionsField::TargetFps || field == OptionsField::InterpolationDelay;
+    }
+
+    std::string playerName = "player";
+    std::string host = "127.0.0.1";
+    std::string port = "27020";
+    std::string windowWidth = "1600";
+    std::string windowHeight = "900";
+    std::string targetFps = "120";
+    std::string interpolationDelay = "2";
+    bool debugOverlayDefault = true;
+    bool editing = false;
+
+private:
+    size_t selectedIndex_ = 0U;
+};
+
 struct UiInputState {
     float mouseX = 0.0f;
     float mouseY = 0.0f;
@@ -137,6 +231,10 @@ enum class UiCommandType : uint8_t {
     StartJoinFieldEdit,
     StopJoinFieldEdit,
     SubmitJoin,
+    StartOptionsFieldEdit,
+    StopOptionsFieldEdit,
+    ToggleOptionsDebugOverlay,
+    SaveOptions,
     BackToMenu,
 };
 
@@ -144,6 +242,7 @@ struct UiCommand {
     UiCommandType type = UiCommandType::None;
     core::MenuAction menuAction = core::MenuAction::None;
     core::JoinFormField joinField = core::JoinFormField::Host;
+    OptionsField optionsField = OptionsField::PlayerName;
 };
 
 struct UiCommandQueue {
@@ -191,6 +290,16 @@ struct UiCommandQueue {
     case UiWidgetId::JoinName:
     case UiWidgetId::JoinConnect:
     case UiWidgetId::JoinBack:
+    case UiWidgetId::OptionsPlayerName:
+    case UiWidgetId::OptionsHost:
+    case UiWidgetId::OptionsPort:
+    case UiWidgetId::OptionsWindowWidth:
+    case UiWidgetId::OptionsWindowHeight:
+    case UiWidgetId::OptionsTargetFps:
+    case UiWidgetId::OptionsInterpolationDelay:
+    case UiWidgetId::OptionsDebugOverlay:
+    case UiWidgetId::OptionsSave:
+    case UiWidgetId::OptionsBack:
         return core::MenuAction::None;
     }
 
@@ -232,10 +341,113 @@ struct UiCommandQueue {
     case UiWidgetId::MenuSingleplayer:
     case UiWidgetId::MenuOptions:
     case UiWidgetId::MenuQuit:
+    case UiWidgetId::OptionsPlayerName:
+    case UiWidgetId::OptionsHost:
+    case UiWidgetId::OptionsPort:
+    case UiWidgetId::OptionsWindowWidth:
+    case UiWidgetId::OptionsWindowHeight:
+    case UiWidgetId::OptionsTargetFps:
+    case UiWidgetId::OptionsInterpolationDelay:
+    case UiWidgetId::OptionsDebugOverlay:
+    case UiWidgetId::OptionsSave:
+    case UiWidgetId::OptionsBack:
         return core::JoinFormField::Host;
     }
 
     return core::JoinFormField::Host;
+}
+
+[[nodiscard]] inline UiWidgetId UiWidgetIdForOptionsField(OptionsField field) {
+    switch (field) {
+    case OptionsField::PlayerName:
+        return UiWidgetId::OptionsPlayerName;
+    case OptionsField::Host:
+        return UiWidgetId::OptionsHost;
+    case OptionsField::Port:
+        return UiWidgetId::OptionsPort;
+    case OptionsField::WindowWidth:
+        return UiWidgetId::OptionsWindowWidth;
+    case OptionsField::WindowHeight:
+        return UiWidgetId::OptionsWindowHeight;
+    case OptionsField::TargetFps:
+        return UiWidgetId::OptionsTargetFps;
+    case OptionsField::InterpolationDelay:
+        return UiWidgetId::OptionsInterpolationDelay;
+    case OptionsField::DebugOverlay:
+        return UiWidgetId::OptionsDebugOverlay;
+    case OptionsField::Save:
+        return UiWidgetId::OptionsSave;
+    case OptionsField::Back:
+        return UiWidgetId::OptionsBack;
+    }
+
+    return UiWidgetId::None;
+}
+
+[[nodiscard]] inline OptionsField OptionsFieldForWidgetId(UiWidgetId widgetId) {
+    switch (widgetId) {
+    case UiWidgetId::OptionsPlayerName:
+        return OptionsField::PlayerName;
+    case UiWidgetId::OptionsHost:
+        return OptionsField::Host;
+    case UiWidgetId::OptionsPort:
+        return OptionsField::Port;
+    case UiWidgetId::OptionsWindowWidth:
+        return OptionsField::WindowWidth;
+    case UiWidgetId::OptionsWindowHeight:
+        return OptionsField::WindowHeight;
+    case UiWidgetId::OptionsTargetFps:
+        return OptionsField::TargetFps;
+    case UiWidgetId::OptionsInterpolationDelay:
+        return OptionsField::InterpolationDelay;
+    case UiWidgetId::OptionsDebugOverlay:
+        return OptionsField::DebugOverlay;
+    case UiWidgetId::OptionsSave:
+        return OptionsField::Save;
+    case UiWidgetId::OptionsBack:
+        return OptionsField::Back;
+    case UiWidgetId::None:
+    case UiWidgetId::MenuStartServer:
+    case UiWidgetId::MenuJoinServer:
+    case UiWidgetId::MenuSingleplayer:
+    case UiWidgetId::MenuOptions:
+    case UiWidgetId::MenuQuit:
+    case UiWidgetId::JoinHost:
+    case UiWidgetId::JoinPort:
+    case UiWidgetId::JoinName:
+    case UiWidgetId::JoinConnect:
+    case UiWidgetId::JoinBack:
+        return OptionsField::PlayerName;
+    }
+
+    return OptionsField::PlayerName;
+}
+
+[[nodiscard]] inline std::string_view OptionsFieldName(OptionsField field) {
+    switch (field) {
+    case OptionsField::PlayerName:
+        return "Player Name";
+    case OptionsField::Host:
+        return "Default Host";
+    case OptionsField::Port:
+        return "Default Port";
+    case OptionsField::WindowWidth:
+        return "Window Width";
+    case OptionsField::WindowHeight:
+        return "Window Height";
+    case OptionsField::TargetFps:
+        return "Target FPS";
+    case OptionsField::InterpolationDelay:
+        return "Interpolation Delay";
+    case OptionsField::DebugOverlay:
+        return "Debug Overlay";
+    case OptionsField::Save:
+        return "Save";
+    case OptionsField::Back:
+        return "Back";
+    }
+
+    return "Unknown";
 }
 
 }  // namespace client::ui

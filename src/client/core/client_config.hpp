@@ -7,6 +7,7 @@ namespace client {
 
 struct ClientConfig {
     std::string executablePath;
+    std::string configFilePath;
     std::string serverHost = "127.0.0.1";
     uint16_t serverPort = 27020;
     std::string playerName = "player";
@@ -16,6 +17,7 @@ struct ClientConfig {
     int targetFps = 120;
     int simulationTickHz = 30;
     int interpolationDelayTicks = 2;
+    bool debugOverlayDefault = true;
     bool autoJoin = false;
     bool skipSplash = false;
 };

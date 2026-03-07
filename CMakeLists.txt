@@ -213,6 +213,7 @@ if(BUILD_GAME_CLIENT)
         src/client/components/components.hpp
         src/client/core/application.hpp
         src/client/core/config.hpp
+        src/client/core/config.cpp
         src/client/modules/client_phases.hpp
         src/client/modules/client_runtime_module.hpp
         src/client/core/menu_model.hpp

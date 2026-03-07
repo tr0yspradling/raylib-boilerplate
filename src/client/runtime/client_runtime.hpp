@@ -79,13 +79,16 @@ private:
     void HandleUiPointerFocus(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void HandleMenuInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void HandleJoinFormInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
+    void HandleOptionsInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void ApplyJoinFormTextInput(ui::JoinServerScreenState& joinScreenState, const ui::UiInputState& inputState) const;
+    void ApplyOptionsTextInput(ui::OptionsScreenState& optionsScreenState, const ui::UiInputState& inputState) const;
     void ActivateMenuAction(flecs::world world, core::MenuAction action);
     void BeginSingleplayer(flecs::world world);
     bool BeginJoinServer(flecs::world world);
     [[nodiscard]] bool EnsureTransportInitialized(std::string& error);
     [[nodiscard]] bool BeginConnectionAttempt(std::string& error);
     bool ApplyJoinFormToConfig(const ui::JoinServerScreenState& joinScreenState);
+    bool ApplyOptionsToConfig(flecs::world world, ui::OptionsScreenState& optionsScreenState);
     void ReturnToMenu(flecs::world world, std::string statusMessage = {});
     void FailLocalServerStartup(flecs::world world, const std::string& message);
     void StopOwnedLocalServer();
@@ -96,6 +99,9 @@ private:
     [[nodiscard]] ui::UiDocument BuildJoinDocument(const ui::ScreenState& screenState,
                                                    const ui::JoinServerScreenState& joinScreenState,
                                                    const ui::UiInteractionState& interactionState) const;
+    [[nodiscard]] ui::UiDocument BuildOptionsDocument(const ui::ScreenState& screenState,
+                                                      const ui::OptionsScreenState& optionsScreenState,
+                                                      const ui::UiInteractionState& interactionState) const;
 
     void OnConnectedToServer();
 

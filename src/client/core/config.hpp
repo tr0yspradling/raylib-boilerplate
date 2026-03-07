@@ -1,21 +1,15 @@
 #pragma once
 
-#include <cstdint>
+#include <filesystem>
 #include <string>
+
+#include "client/core/client_config.hpp"
 
 namespace client::core {
 
-struct Config {
-    std::string serverHost = "127.0.0.1";
-    uint16_t serverPort = 27020;
-    std::string playerName = "player";
-
-    int windowWidth = 1600;
-    int windowHeight = 900;
-    int targetFps = 120;
-
-    int simulationTickHz = 30;
-    int snapshotRateHz = 15;
-};
+[[nodiscard]] std::filesystem::path DefaultClientConfigPath();
+[[nodiscard]] client::ClientConfig LoadClientConfigFile(const std::filesystem::path& path, std::string& warning);
+[[nodiscard]] bool SaveClientConfigFile(const client::ClientConfig& config, const std::filesystem::path& path,
+                                        std::string& error);
 
 }  // namespace client::core

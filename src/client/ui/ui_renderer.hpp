@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 
 #include <raylib-cpp.hpp>
@@ -23,7 +24,8 @@ public:
         }
 
         if (!document.statusMessage.empty()) {
-            raylib::Color{255, 209, 140, 255}.DrawText(document.statusMessage.c_str(), width / 2 - 300, 548, 20);
+            const int statusY = ComputeStatusY(document, height);
+            raylib::Color{255, 209, 140, 255}.DrawText(document.statusMessage.c_str(), width / 2 - 300, statusY, 20);
         }
 
         if (!document.footerHint.empty()) {
@@ -32,6 +34,14 @@ public:
     }
 
 private:
+    [[nodiscard]] static int ComputeStatusY(const UiDocument& document, int height) {
+        float maxBottom = 520.0f;
+        for (const UiWidget& widget : document.widgets) {
+            maxBottom = std::max(maxBottom, widget.bounds.y + widget.bounds.height);
+        }
+        return std::min(static_cast<int>(maxBottom + 20.0f), height - 96);
+    }
+
     static void DrawWidget(const UiWidget& widget) {
         const raylib::Color panelColor = WidgetPanelColor(widget.state);
         const raylib::Color textColor = WidgetTextColor(widget.state);

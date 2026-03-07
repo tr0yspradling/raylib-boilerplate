@@ -58,6 +58,8 @@ src/
    the server is ready.
 9. `Singleplayer` now runs through a local authoritative wrapper over the
    shared deterministic sim with no transport layer.
+10. `Options` now runs through the same UI-document flow as the other menu
+    screens and persists client preferences through `client_data/client.cfg`.
 
 ## Current Client Phase Order
 
@@ -89,8 +91,8 @@ src/
   remaining transitional runtime ownership.
 - Move more client runtime/session state into explicit flecs resources/components
   instead of relying on transitional scene-switch mapping.
-- Replace the remaining placeholder runtime flow (`Options`) with a real
-  implementation on top of the current UI/document path.
+- Move the completed options/preferences flow out of the transitional runtime
+  shell and into explicit flecs-owned state/resources.
 - Continue removing the remaining transitional routing from the thin render
   coordinator once more presentation state is explicit.
 - Decompose the server runtime into narrower session/router/replication-style

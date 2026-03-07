@@ -33,8 +33,9 @@ namespace client::render {
         state.footer = "Press Esc to return to menu";
         break;
     case core::SceneKind::Options:
-        state.title = "Options (Placeholder)";
-        state.subtitle = runtimeStatus.empty() ? "Not implemented in this slice" : std::string{runtimeStatus};
+        state.title = "Options";
+        state.subtitle = runtimeStatus.empty() ? "Persist local client preferences" : std::string{runtimeStatus};
+        state.footer = "Navigate and save preferences";
         break;
     case core::SceneKind::Disconnected:
         state.title = "Disconnected";

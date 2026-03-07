@@ -68,7 +68,7 @@
 - Remaining risks/blockers:
   - Singleplayer ownership still lives inside the transitional `ClientRuntime` shell rather than explicit flecs resources/components.
   - The first slice is intentionally narrow: no save/load hooks, pause flow, or local world content beyond the player sandbox.
-  - `Options` remains the last major placeholder runtime flow.
+  - Follow-on architectural cleanup is still pending even though the menu/runtime slice is complete.
 
 ### Validation
 - `cmake --build --preset debug -j`

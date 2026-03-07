@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "client/core/client_args.hpp"
+#include "client/core/config.hpp"
 #include "client/game_client.hpp"
 
 namespace client {
@@ -29,10 +30,17 @@ int RunClientEntry(int argc, char** argv) {
             return 0;
         }
 
-        ClientConfig config = std::move(parsed.config);
+        const std::filesystem::path configPath = core::DefaultClientConfigPath();
+        std::string configWarning;
+        ClientConfig config = core::LoadClientConfigFile(configPath, configWarning);
+        if (!configWarning.empty()) {
+            std::cerr << "[client.config] " << configWarning;
+        }
         const std::filesystem::path executablePath =
             std::filesystem::absolute(std::filesystem::path{programName}).lexically_normal();
         config.executablePath = executablePath.string();
+        config.configFilePath = configPath.string();
+        parsed.ApplyOverrides(config);
         GameClient client{std::move(config)};
         if (!client.Initialize()) {
             return 1;

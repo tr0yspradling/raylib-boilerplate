@@ -26,8 +26,7 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 2A is complete:
   - startup defaults to splash -> main menu (no eager connect)
   - interactive menu navigation/action dispatch is wired
-  - `Join Server`, `Start Server`, `Singleplayer`, and `Quit` are fully wired
-  - `Options` still routes to a placeholder
+  - `Join Server`, `Start Server`, `Singleplayer`, `Options`, and `Quit` are fully wired
 - Phase 3 join-form slice is complete:
   - menu `Join Server` opens editable host/port/name form state
   - `JoinServer` (form) and `Connecting` (active network attempt) are now distinct runtime scenes
@@ -52,6 +51,10 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 6 singleplayer slice is complete:
   - `Singleplayer` now runs through a transport-free local authoritative sim wrapper over `shared::game::GameState`
   - gameplay rendering/input are reused for the first local sandbox pass
+- Phase 7 options/config slice is complete:
+  - `Options` now renders through the UI/document path instead of a placeholder status card
+  - client preferences persist in `client_data/client.cfg`
+  - explicit CLI args override saved preferences on startup
 
 ## Target Runtime Shape
 
@@ -96,10 +99,9 @@ Goal: present interactive menu options in client runtime.
   - menu-first startup is now default
   - `--auto-join` / `--skip-splash` flags are implemented
   - interactive menu navigation + action dispatch is wired
-  - `Join Server`, `Start Server`, `Singleplayer`, and `Quit` are fully wired
-  - `Options` still routes to a placeholder
+  - `Join Server`, `Start Server`, `Singleplayer`, `Options`, and `Quit` are fully wired
 - Remaining for full Phase 2:
-  - replace the remaining placeholder route with a real flow (`Options`)
+  - none for the currently planned menu actions
 
 ### Changes
 - Add menu rendering + keyboard/gamepad navigation:
@@ -164,7 +166,7 @@ Goal: make flecs the active runtime architecture for both client and server befo
 - Remaining Phase 4 work:
   - move more runtime/session state into explicit flecs resources/components
   - continue removing the transitional `RuntimeState + SceneManager` layer
-  - implement the remaining real `Options` flow on top of the new UI/presentation structure
+  - continue moving completed flows onto explicit flecs-owned state instead of transitional runtime ownership
 
 ### Changes
 - Introduce `ClientApp` / `ServerApp` composition roots backed by `flecs::world`.
@@ -233,12 +235,21 @@ Goal: provide a no-network singleplayer mode while preserving authoritative logi
 ## Phase 7: Options Screen and Config Persistence
 Goal: expose runtime/network/video/gameplay options.
 
+### Current Status (2026-03-06)
+- Completed for the first implementation slice.
+- Delivered behavior:
+  - real options screen through the existing UI/document path
+  - persisted client preferences with CLI override precedence
+  - immediate runtime application for safe live settings
+- Follow-up still open:
+  - move options persistence/state out of transitional `ClientRuntime`
+  - broaden manual GUI save/reload coverage
+
 ### Changes
 - Options menu scene/state:
-  - `src/client/scenes/options_scene.hpp` (new)
-  - `src/client/core/config.hpp`
+  - `src/client/core/config.hpp/.cpp`
 - Persist user preferences to a client config file:
-  - `assets/config/client.cfg` or `user_data/client.cfg` (final path chosen during implementation).
+  - `client_data/client.cfg`
 - Include:
   - display/window settings
   - default player name

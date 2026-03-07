@@ -73,7 +73,7 @@
 - Remaining risks/blockers:
   - Local dedicated ownership still lives inside the transitional `ClientRuntime` service rather than explicit flecs resources/components.
   - Full manual GUI validation of the `Start Server` menu path is still pending; the current validation covers build/tests plus concurrent client/server startup sanity.
-  - `Options` remains a placeholder flow for a later phase.
+  - Follow-on architectural cleanup is still pending even though the end-user flow is implemented.
 
 ### Validation
 - `cmake --build --preset debug -j`

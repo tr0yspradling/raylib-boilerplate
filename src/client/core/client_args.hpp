@@ -13,6 +13,27 @@ namespace client::core {
 struct ParsedClientArgs {
     client::ClientConfig config{};
     bool showHelp = false;
+    bool hostProvided = false;
+    bool portProvided = false;
+    bool nameProvided = false;
+    bool tickRateProvided = false;
+
+    void ApplyOverrides(client::ClientConfig& target) const {
+        if (hostProvided) {
+            target.serverHost = config.serverHost;
+        }
+        if (portProvided) {
+            target.serverPort = config.serverPort;
+        }
+        if (nameProvided) {
+            target.playerName = config.playerName;
+        }
+        if (tickRateProvided) {
+            target.simulationTickHz = config.simulationTickHz;
+        }
+        target.autoJoin = config.autoJoin;
+        target.skipSplash = config.skipSplash;
+    }
 };
 
 inline void ConfigureClientArgParser(argparse::ArgumentParser& parser) {
@@ -54,15 +75,19 @@ inline void ConfigureClientArgParser(argparse::ArgumentParser& parser) {
     ParsedClientArgs parsed{};
     if (const auto host = parser.present<std::string>("--host")) {
         parsed.config.serverHost = *host;
+        parsed.hostProvided = true;
     }
     if (const auto port = parser.present<int>("--port")) {
         parsed.config.serverPort = static_cast<uint16_t>(*port);
+        parsed.portProvided = true;
     }
     if (const auto name = parser.present<std::string>("--name")) {
         parsed.config.playerName = *name;
+        parsed.nameProvided = true;
     }
     if (const auto tickRate = parser.present<int>("--tick-rate")) {
         parsed.config.simulationTickHz = *tickRate;
+        parsed.tickRateProvided = true;
     }
     parsed.config.autoJoin = parser.get<bool>("--auto-join");
     parsed.config.skipSplash = parser.get<bool>("--skip-splash");

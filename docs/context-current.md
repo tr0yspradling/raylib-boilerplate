@@ -3,8 +3,8 @@
 Last updated: 2026-03-06
 
 ## Current Focus
-- Phase 6 singleplayer runtime on top of the flecs runtime foundation.
-- Shrinking the remaining transitional `ClientRuntime` responsibilities after `Start Server` and `Singleplayer` became real runtime paths.
+- Runtime state decomposition on top of the completed menu/start-server/singleplayer/options slices.
+- Shrinking the remaining transitional `ClientRuntime` responsibilities now that the planned end-user flows are in place.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -69,24 +69,30 @@ Last updated: 2026-03-06
   - replaced the `Singleplayer` placeholder with a real `MainMenu -> GameplaySingleplayer` local sandbox path
   - reused the gameplay world renderer for singleplayer movement/jump visualization
   - added `test_sim_singleplayer_runtime` to cover local spawn, movement, jump, and shutdown semantics
+- Implemented the Phase 7 options/config slice:
+  - added persisted client preference load/save helpers under `client/core/config.*`
+  - client startup now loads `client_data/client.cfg` and applies explicit CLI overrides on top
+  - replaced the `Options` placeholder with a real options screen on the UI/document path
+  - options now apply player/default-host/default-port, target FPS, window size, interpolation delay, and debug overlay default live
+  - added `test_sim_client_config_file` for client preference persistence coverage
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`17/17`).
+- Tests: `ctest --preset debug` passing (`18/18`).
 - Runtime sanity: `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15` starts successfully.
 - Client startup sanity: `./build/debug/game_client --host 127.0.0.1 --port 27021 --auto-join --skip-splash` starts successfully alongside the dedicated server.
 - Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully for the local gameplay path.
-- Manual GUI smoke: not yet run for the full menu-driven `Start Server` and `Singleplayer` paths.
+- Manual GUI smoke: not yet run for the full menu-driven `Start Server`, `Singleplayer`, and `Options` paths.
 
 ## Open Risks / Gaps
 - Client runtime flow still depends on transitional `RuntimeState` + `SceneManager` internals behind the flecs shell.
 - Transport/session state and most orchestration logic still live inside `ClientRuntime`.
-- The remaining major client/runtime work is state/orchestration decomposition plus implementation of the remaining placeholder flow.
-- `Options` still remains a placeholder.
+- The remaining major client/runtime work is state/orchestration decomposition rather than end-user flow completion.
 - Local dedicated server ownership/retry state is runtime-local today; it has not yet moved into explicit flecs resources/components.
 - Singleplayer ownership/state is also runtime-local today; it has not yet moved into explicit flecs resources/components.
+- Options persistence/state is also runtime-local today; it has not yet moved into explicit flecs resources/components.
 - Post-multiplayer disconnect reason retention after returning to menu is still pending.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
@@ -97,9 +103,10 @@ Last updated: 2026-03-06
 - `docs/runtime-phase4-plan.md`
 - `docs/runtime-phase5-plan.md`
 - `docs/runtime-phase6-plan.md`
+- `docs/runtime-phase7-plan.md`
 
 ## Next Recommended Step
 - Continue decomposing runtime state inside the flecs worlds:
   - move local-start/session ownership and screen flow out of `ClientRuntime` into explicit flecs resources/services
-  - implement the remaining real `Options` flow on top of the current UI/document path
+  - move singleplayer/options persistence and screen ownership out of `ClientRuntime`
   - remove more of the transitional `RuntimeState + SceneManager` dependency from the client shell

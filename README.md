@@ -149,4 +149,5 @@ cmake -S . -B build `
 - `src/client/render/` now contains dedicated background, splash, status, and gameplay render helpers.
 - `src/client/core/server_launcher.*` now owns the process-based local dedicated launcher used by `Start Server`.
 - `src/client/core/singleplayer_runtime.*` now owns the transport-free local authoritative sandbox used by `Singleplayer`.
-- State/orchestration decomposition is still in progress; `Options` remains a placeholder flow.
+- `src/client/core/config.*` now owns persisted client preferences used by startup and `Options`.
+- State/orchestration decomposition is still in progress, but the planned menu flows are now implemented.

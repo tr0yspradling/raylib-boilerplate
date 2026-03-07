@@ -16,12 +16,29 @@ int main() {
     assert(parsedA.config.serverPort == 28000);
     assert(parsedA.config.playerName == "alice");
     assert(parsedA.config.simulationTickHz == 60);
+    assert(parsedA.hostProvided == true);
+    assert(parsedA.portProvided == true);
+    assert(parsedA.nameProvided == true);
+    assert(parsedA.tickRateProvided == true);
     assert(parsedA.config.autoJoin == true);
     assert(parsedA.config.skipSplash == true);
 
     const char* argvB[] = {"game_client", "--help"};
     const ParsedClientArgs parsedB = ParseClientArgs(static_cast<int>(sizeof(argvB) / sizeof(argvB[0])), argvB);
     assert(parsedB.showHelp == true);
+
+    client::ClientConfig mergedConfig{};
+    mergedConfig.serverHost = "10.0.0.2";
+    mergedConfig.serverPort = 27020;
+    mergedConfig.playerName = "persisted";
+    mergedConfig.simulationTickHz = 30;
+    parsedA.ApplyOverrides(mergedConfig);
+    assert(mergedConfig.serverHost == "192.168.1.10");
+    assert(mergedConfig.serverPort == 28000);
+    assert(mergedConfig.playerName == "alice");
+    assert(mergedConfig.simulationTickHz == 60);
+    assert(mergedConfig.autoJoin == true);
+    assert(mergedConfig.skipSplash == true);
 
     const std::string helpText = ClientArgHelpText("game_client");
     assert(helpText.find("--auto-join") != std::string::npos);

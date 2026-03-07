@@ -30,11 +30,11 @@ public:
             break;
         case core::SceneKind::MainMenu:
         case core::SceneKind::JoinServer:
+        case core::SceneKind::Options:
             ui::UiRenderer::Draw(document, width, height);
             break;
         case core::SceneKind::Connecting:
         case core::SceneKind::StartingServer:
-        case core::SceneKind::Options:
         case core::SceneKind::Disconnected:
             render::StatusRenderer::Draw(status, width, height);
             break;
