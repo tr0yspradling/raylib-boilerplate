@@ -2,6 +2,8 @@
 
 #include <string_view>
 
+#include "client/core/runtime_state.hpp"
+
 namespace client::core {
 
 enum class SceneKind {
@@ -39,6 +41,33 @@ enum class SceneKind {
     }
 
     return "Unknown";
+}
+
+[[nodiscard]] inline SceneKind SceneForRuntime(const RuntimeState& runtime) {
+    if (!runtime.disconnectReason.empty() || runtime.mode == RuntimeMode::Disconnected) {
+        return SceneKind::Disconnected;
+    }
+
+    switch (runtime.mode) {
+        case RuntimeMode::Boot:
+            return runtime.splashCompleted ? SceneKind::MainMenu : SceneKind::Splash;
+        case RuntimeMode::Menu:
+            return SceneKind::MainMenu;
+        case RuntimeMode::JoiningServer:
+            return runtime.joiningInProgress ? SceneKind::Connecting : SceneKind::JoinServer;
+        case RuntimeMode::StartingLocalServer:
+            return SceneKind::StartingServer;
+        case RuntimeMode::Multiplayer:
+            return SceneKind::GameplayMultiplayer;
+        case RuntimeMode::Singleplayer:
+            return SceneKind::GameplaySingleplayer;
+        case RuntimeMode::Options:
+            return SceneKind::Options;
+        case RuntimeMode::Disconnected:
+            return SceneKind::Disconnected;
+    }
+
+    return SceneKind::Disconnected;
 }
 
 }  // namespace client::core

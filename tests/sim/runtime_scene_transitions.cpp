@@ -1,61 +1,49 @@
 #include <cassert>
 #include <string>
 
-#include "client/core/application.hpp"
+#include "client/core/scene.hpp"
 
 int main() {
     using namespace client::core;
 
-    SceneManager scenes;
     RuntimeState runtime{};
 
     runtime.mode = RuntimeMode::Boot;
     runtime.splashCompleted = false;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::Splash);
+    assert(SceneForRuntime(runtime) == SceneKind::Splash);
 
     runtime.splashCompleted = true;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::MainMenu);
+    assert(SceneForRuntime(runtime) == SceneKind::MainMenu);
 
     runtime.mode = RuntimeMode::Menu;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::MainMenu);
+    assert(SceneForRuntime(runtime) == SceneKind::MainMenu);
 
     runtime.mode = RuntimeMode::JoiningServer;
     runtime.joiningInProgress = false;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::JoinServer);
+    assert(SceneForRuntime(runtime) == SceneKind::JoinServer);
 
     runtime.joiningInProgress = true;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::Connecting);
+    assert(SceneForRuntime(runtime) == SceneKind::Connecting);
 
     runtime.mode = RuntimeMode::StartingLocalServer;
     runtime.joiningInProgress = false;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::StartingServer);
+    assert(SceneForRuntime(runtime) == SceneKind::StartingServer);
 
     runtime.mode = RuntimeMode::Multiplayer;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::GameplayMultiplayer);
+    assert(SceneForRuntime(runtime) == SceneKind::GameplayMultiplayer);
 
     runtime.mode = RuntimeMode::Singleplayer;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::GameplaySingleplayer);
+    assert(SceneForRuntime(runtime) == SceneKind::GameplaySingleplayer);
 
     runtime.mode = RuntimeMode::Options;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::Options);
+    assert(SceneForRuntime(runtime) == SceneKind::Options);
 
     runtime.mode = RuntimeMode::Disconnected;
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::Disconnected);
+    assert(SceneForRuntime(runtime) == SceneKind::Disconnected);
 
     runtime.mode = RuntimeMode::Menu;
     runtime.disconnectReason = "connection closed";
-    Application::UpdateScene(scenes, runtime);
-    assert(scenes.ActiveScene() == SceneKind::Disconnected);
+    assert(SceneForRuntime(runtime) == SceneKind::Disconnected);
 
     return 0;
 }

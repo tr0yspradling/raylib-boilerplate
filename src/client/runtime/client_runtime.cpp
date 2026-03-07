@@ -98,7 +98,7 @@ ClientRuntime::ClientRuntime(ClientConfig config) :
 
     flecs::world& ClientRuntime::RuntimeWorld() { return *world_; }
 
-    const flecs::world& ClientRuntime::RuntimeWorld() const { return *world_; }
+const flecs::world& ClientRuntime::RuntimeWorld() const { return *world_; }
 
     ClientFlowState& ClientRuntime::FlowState() { return RuntimeWorld().get_mut<ClientFlowState>(); }
 
@@ -119,6 +119,8 @@ ClientSessionState& ClientRuntime::SessionState() {
 const ClientSessionState& ClientRuntime::SessionState() const {
     return RuntimeWorld().get<ClientSessionState>();
 }
+
+core::SceneKind ClientRuntime::ActiveScene() const { return core::SceneForRuntime(FlowState().runtime); }
 
 bool ClientRuntime::Initialize(flecs::world world) {
     world_ = world;
@@ -142,8 +144,7 @@ bool ClientRuntime::Initialize(flecs::world world) {
     sessionState.serverTickRateHz = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
     world.set<ClientSessionState>(std::move(sessionState));
 
-    sceneManager_.SwitchTo(flow.runtime.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
-        ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
+    ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
         joinScreenState.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
         world.set<ui::MenuScreenState>({});
         world.set<ui::JoinServerScreenState>(joinScreenState);
@@ -288,7 +289,6 @@ bool ClientRuntime::Initialize(flecs::world world) {
         }
 
         RefreshRuntimeState();
-        core::Application::UpdateScene(sceneManager_, flow.runtime);
 
         multiplayerSession_.UpdateCadence(flow, session, std::chrono::steady_clock::now());
 
@@ -1155,11 +1155,9 @@ bool ClientRuntime::Initialize(flecs::world world) {
     void ClientRuntime::PublishScreenState(flecs::world world) {
         RefreshRuntimeState();
         const ClientFlowState& flow = world.get<ClientFlowState>();
-        core::Application::UpdateScene(sceneManager_, flow.runtime);
-
         world.set<ui::ScreenState>({
             .mode = flow.runtime.mode,
-            .activeScene = sceneManager_.ActiveScene(),
+            .activeScene = ActiveScene(),
             .joiningInProgress = flow.runtime.joiningInProgress,
             .statusMessage = ActiveScreenStatusMessage(flow),
             .disconnectReason = flow.disconnectReason,
@@ -1357,14 +1355,14 @@ bool ClientRuntime::Initialize(flecs::world world) {
 
     components::StatusRenderState ClientRuntime::BuildStatusRenderState() const {
         const ClientFlowState& flow = FlowState();
-        return render::BuildStatusRenderState(sceneManager_.ActiveScene(), flow.statusMessage, flow.disconnectReason);
+        return render::BuildStatusRenderState(ActiveScene(), flow.statusMessage, flow.disconnectReason);
     }
 
     components::NetworkDebugState ClientRuntime::BuildDebugState() const {
         const ClientFlowState& flow = FlowState();
         const ClientSessionState& session = SessionState();
         components::NetworkDebugState state;
-        state.activeScene = sceneManager_.ActiveScene();
+        state.activeScene = ActiveScene();
         const std::string status = ActiveScreenStatusMessage(flow);
         state.sceneName = ComposeSceneLabel(state.activeScene, status);
         state.connecting = session.connecting;

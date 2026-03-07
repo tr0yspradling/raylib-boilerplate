@@ -21,7 +21,7 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
   - expanded scene taxonomy (`Splash`, `MainMenu`, `JoinServer`, `StartingServer`, `Connecting`,
     `GameplayMultiplayer`, `GameplaySingleplayer`, `Options`, `Disconnected`)
   - `RuntimeMode` / `RuntimeState` and `MenuAction` / `MenuSelectionState` scaffolding are in place
-  - scene transitions route through `Application::UpdateScene(SceneManager&, const RuntimeState&)`
+  - scene selection now derives from a pure runtime-to-scene mapping
 - Build workflow is standardized on presets under `build/<preset>`.
 - Phase 2A is complete:
   - startup defaults to splash -> main menu (no eager connect)
@@ -61,6 +61,12 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 9 client session-resource slice is complete:
   - multiplayer session, prediction, interpolation, chunk cache state, and cadence/debug metadata now live on the client world through `runtime::ClientSessionState`
   - transport infrastructure and singleplayer runtime remain local to `ClientRuntime` in this pass
+- Phase 10 multiplayer-session-service slice is complete:
+  - `ClientRuntime` now delegates transport bootstrap, polling, packet decode/dispatch, connect/disconnect handling, multiplayer cadence sends, and connection metrics queries to `runtime::MultiplayerSessionService`
+  - `runtime::ClientSessionState` remains the shared state contract between the service, client runtime, presentation, and tests
+- Phase 11 scene-publication cleanup slice is complete:
+  - the active client path now derives `core::SceneKind` directly from runtime flow state through a pure helper
+  - `ClientRuntime` no longer owns or mutates a `SceneManager`
 
 ## Target Runtime Shape
 
@@ -328,25 +334,27 @@ Goal: move transport/session orchestration out of `ClientRuntime` into a dedicat
 - Existing join, local dedicated, multiplayer gameplay, and disconnect flows continue to work.
 - Build, tests, and a short client startup smoke check pass.
 
-## Phase 11: Runtime Polish, Safety, and Testability
-Goal: stabilize flows and prevent regressions.
+## Phase 11: Scene Publication Cleanup
+Goal: remove the transitional `RuntimeState + SceneManager` bridge from the active client runtime path.
+
+### Current Status (2026-03-06)
+- Completed for the next decomposition slice.
+- Delivered behavior:
+  - the active client path now derives `core::SceneKind` directly from world-owned flow state via `core::SceneForRuntime(...)`
+  - `ui::ScreenState`, status presentation, and debug overlay consume that same pure scene mapping without a `SceneManager`
 
 ### Changes
-- Add tests:
-  - scene transition tests
-  - menu action mapping tests
-  - join/start-server flow state tests
-- Expand runbook for new user flows.
-- Add structured logging for runtime transitions.
+- Replace the active `Application::UpdateScene(SceneManager&, const RuntimeState&)` path with a pure scene-selection helper.
+- Remove `SceneManager` ownership from `ClientRuntime`.
+- Update scene-transition tests to validate the pure mapping directly.
 
 ### Acceptance
-- Deterministic, logged scene transitions.
-- Manual smoke path passes:
-  1. splash -> menu
-  2. join remote server
-  3. start local server and join
-  4. singleplayer launch
-  5. options save/reload
+- The active client runtime no longer owns or mutates a `SceneManager`.
+- `ui::ScreenState`, status presentation, and debug overlay still publish the same scene values as before.
+- Build, tests, and a short client startup smoke check pass.
+
+## Phase 12: Runtime Polish, Safety, and Testability
+Goal: stabilize flows and prevent regressions.
 
 ## File Impact Map (Planned)
 - Client runtime core:

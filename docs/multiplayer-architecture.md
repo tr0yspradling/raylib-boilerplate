@@ -42,6 +42,7 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 - Runtime control flow now also lives on the client world through explicit resources:
   - `runtime::ClientFlowState` owns runtime mode, splash completion, requested actions, status/disconnect text, and debug overlay toggle
   - `runtime::LocalServerStartupState` owns local dedicated startup ownership/retry timing
+- Active client scene publication now derives `core::SceneKind` directly from runtime flow state through a pure helper rather than mutating a `SceneManager`.
 - Multiplayer client session state now also lives on the client world through `runtime::ClientSessionState`, which owns the live connection handle/flags, handshake and tick metadata, prediction buffers, remote interpolation state, chunk cache state, and related cadence/debug bookkeeping.
 - Multiplayer transport/session orchestration now lives behind `runtime::MultiplayerSessionService`, which owns the transport implementation and mutates the client-world session resource rather than storing duplicate runtime state.
 - Non-UI status presentation is now built explicitly during `PresentationBuild`, and concrete drawing is split across dedicated render helpers.
@@ -146,6 +147,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 
 ## Validation Coverage
 - Existing gameplay/network tests still cover serializer, send policy, fixed step, menu/join state, and runtime scene transitions.
+- Runtime scene-transition tests now validate the pure runtime-to-scene mapping directly.
 - New world-level tests verify flecs phase ordering for both client and server runtimes.
 - UI state/document tests now cover menu state, join-form state, and document hit-testing/focus traversal helpers.
 - Status presentation tests now cover non-UI status-screen mapping.

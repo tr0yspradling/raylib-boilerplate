@@ -3,8 +3,8 @@
 Last updated: 2026-03-06
 
 ## Current Focus
-- Runtime/service decomposition after the completed client multiplayer-session-service slice.
-- Shrinking the remaining transitional `ClientRuntime` responsibilities now that client flow state, multiplayer session state, and transport orchestration are split more cleanly.
+- Runtime/service decomposition after the completed client scene-publication cleanup slice.
+- Shrinking the remaining transitional `ClientRuntime` responsibilities now that client flow state, multiplayer session state, transport orchestration, and scene publication are split more cleanly.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -88,6 +88,10 @@ Last updated: 2026-03-06
   - added `runtime::MultiplayerSessionService` as the dedicated client-side boundary for transport bootstrap, connect/disconnect handling, packet decode/dispatch, multiplayer cadence sends, and metrics
   - removed direct transport/message-handling ownership from `ClientRuntime`, which now orchestrates around the service and existing flecs-owned resources
   - added `test_sim_client_multiplayer_session_service` to cover the extracted connect/event/ClientHello path with a fake transport
+- Implemented the Phase 11 scene-publication cleanup slice:
+  - added pure `core::SceneForRuntime(...)` mapping from runtime flow state to `SceneKind`
+  - removed `SceneManager` ownership from the active `ClientRuntime` path
+  - updated `ui::ScreenState`, status presentation, debug overlay, and runtime scene-transition tests to use the pure mapping
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
@@ -101,7 +105,6 @@ Last updated: 2026-03-06
 - Manual GUI smoke: not yet run for the full menu-driven `Start Server`, `Singleplayer`, and `Options` paths.
 
 ## Open Risks / Gaps
-- Client runtime flow still depends on transitional `RuntimeState` + `SceneManager` bridging behind the flecs shell, even though the underlying control state is now world-owned.
 - Singleplayer stepping and broader local gameplay ownership still live inside `ClientRuntime`.
 - Options persistence is still applied from `ClientRuntime`, even though the live control state is now in flecs resources.
 - Manual GUI smoke for `Start Server`, `Singleplayer`, and `Options` is still pending.
@@ -118,9 +121,10 @@ Last updated: 2026-03-06
 - `docs/runtime-phase8-plan.md`
 - `docs/runtime-phase9-plan.md`
 - `docs/runtime-phase10-plan.md`
+- `docs/runtime-phase11-plan.md`
 
 ## Next Recommended Step
-- Continue decomposing `ClientRuntime` behavior now that the world owns both control flow and multiplayer state and multiplayer transport lives behind a service:
-  - reduce or remove the transitional `RuntimeState + SceneManager` bridge from the client shell
+- Continue decomposing `ClientRuntime` behavior now that the world owns control flow and multiplayer state, transport lives behind a service, and scene publication is pure:
   - push singleplayer/runtime-service ownership further out of `ClientRuntime`
   - move options persistence/application behind a clearer service boundary
+  - run the pending manual GUI smoke for `Start Server`, `Singleplayer`, and `Options`

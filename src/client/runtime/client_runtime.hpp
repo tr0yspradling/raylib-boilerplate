@@ -12,11 +12,9 @@
 #include <vector>
 
 #include "client/components/components.hpp"
-#include "client/core/application.hpp"
 #include "client/core/client_config.hpp"
 #include "client/core/menu_model.hpp"
 #include "client/core/runtime_state.hpp"
-#include "client/core/scene_manager.hpp"
 #include "client/core/server_launcher.hpp"
 #include "client/core/singleplayer_runtime.hpp"
 #include "client/input/input_manager.hpp"
@@ -102,6 +100,7 @@ class ClientRuntime {
         [[nodiscard]] const ClientSessionState& SessionState() const;
         [[nodiscard]] flecs::world& RuntimeWorld();
         [[nodiscard]] const flecs::world& RuntimeWorld() const;
+        [[nodiscard]] core::SceneKind ActiveScene() const;
 
         void StepSimulation();
 
@@ -121,7 +120,6 @@ class ClientRuntime {
 
         game::FixedStep fixedStep_;
         MultiplayerSessionService multiplayerSession_;
-        core::SceneManager sceneManager_{};
         input::InputManager inputManager_{};
         core::SingleplayerRuntime singleplayerRuntime_{};
 };
