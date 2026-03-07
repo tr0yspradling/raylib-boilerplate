@@ -4,7 +4,7 @@ Last updated: 2026-03-07
 
 ## Current Focus
 - Runtime reshape program completed through the Phase 14 acceptance/testability slice.
-- Remaining validation work is now limited to optional hands-on GUI smoke rather than missing architecture or missing runtime coverage.
+- Remaining validation work is now limited to an operator-run hands-on GUI smoke pass if release-style input validation is required.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -115,10 +115,14 @@ Last updated: 2026-03-07
 - Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully for the local gameplay path.
 - Client startup sanity: `timeout 2 ./build/debug/game_client --skip-splash` reaches a live window and frame loop under the new session-resource path.
 - Automated acceptance: `test_sim_client_runtime_acceptance` covers the remaining menu-driven `Start Server`, `Singleplayer`, and `Options` flows at the runtime/UI-command level.
-- Manual GUI smoke: still not run for the full hands-on visual/input validation of `Start Server`, `Singleplayer`, and `Options`.
+- Manual GUI smoke: partially attempted with desktop automation.
+  - Confirmed the real main-menu window renders correctly via a window-targeted screenshot.
+  - Confirmed a real gameplay window renders correctly via `game_server` + `game_client --auto-join --skip-splash` on isolated port `27041`.
+  - Could not complete interactive validation for `Start Server`, `Singleplayer`, or `Options` because the current macOS session denied `System Events` assistive access and low-level posted key/mouse events did not move the raylib UI state.
 
 ## Open Risks / Gaps
-- Full hands-on GUI smoke for `Start Server`, `Singleplayer`, and `Options` is still pending if release-style visual/input validation is required.
+- A true operator-driven GUI pass for `Start Server`, `Singleplayer`, and `Options` is still pending if release-style visual/input validation is required.
+- The current macOS session cannot complete that interactive pass non-interactively because assistive access is denied and synthetic low-level input did not affect the raylib window.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
 ## Active Plan Docs
@@ -138,5 +142,5 @@ Last updated: 2026-03-07
 - `docs/runtime-phase14-plan.md`
 
 ## Next Recommended Step
-- If desired, run a brief hands-on GUI acceptance pass for `Start Server`, `Singleplayer`, and `Options` to validate visuals and real input feel.
+- If desired, run a brief operator-driven GUI acceptance pass for `Start Server`, `Singleplayer`, and `Options` from a macOS session with Accessibility/Input Monitoring enabled for the automation tool or by manual keyboard/mouse interaction.
 - Otherwise, the planned runtime reshape program is complete and the next work can be chosen as new scope rather than leftover cleanup.
