@@ -21,6 +21,7 @@
 #include "client/core/singleplayer_runtime.hpp"
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
+#include "client/runtime/multiplayer_session_service.hpp"
 #include "client/runtime/runtime_resources.hpp"
 #include "client/systems/render_system.hpp"
 #include "client/ui/ui_document.hpp"
@@ -29,9 +30,6 @@
 #include "shared/game/entity.hpp"
 #include "shared/game/fixed_step.hpp"
 #include "shared/game/interpolation.hpp"
-#include "shared/net/protocol.hpp"
-#include "shared/net/transport_gns.hpp"
-
 namespace client {
 
 namespace game = shared::game;
@@ -58,8 +56,6 @@ class ClientRuntime {
         [[nodiscard]] bool ShouldExit() const;
 
     private:
-        void HandleConnectionEvents();
-        void HandleIncomingPackets();
         void ConsumeUiCommands(flecs::world world);
         void HandlePlaceholderScreenInput(flecs::world world);
         void UpdateLocalServerStartup(flecs::world world, std::chrono::steady_clock::time_point now);
@@ -96,18 +92,6 @@ class ClientRuntime {
                                                           const ui::OptionsScreenState& optionsScreenState,
                                                           const ui::UiInteractionState& interactionState) const;
 
-        void OnConnectedToServer();
-
-        void HandleServerWelcome(const net::ServerWelcomeMessage& message);
-        void HandleWorldMetadata(const net::WorldMetadataMessage& message);
-        void HandleSpawnPlayer(const net::SpawnPlayerMessage& message);
-        void HandleDespawnEntity(const net::DespawnEntityMessage& message);
-        void HandleSnapshot(const net::SnapshotPayload& snapshot);
-        void HandleChunkBaseline(const net::ChunkBaselineMessage& message);
-        void HandleChunkDelta(const net::ChunkDeltaMessage& message);
-        void HandleChunkUnsubscribe(const net::ChunkUnsubscribeMessage& message);
-        void HandleResyncRequired(const net::ResyncRequiredMessage& message);
-        void HandleDisconnectReason(const net::DisconnectReasonMessage& message);
         void ResetSessionState();
         void RefreshRuntimeState();
         [[nodiscard]] ClientFlowState& FlowState();
@@ -120,10 +104,6 @@ class ClientRuntime {
         [[nodiscard]] const flecs::world& RuntimeWorld() const;
 
         void StepSimulation();
-        void SendInputFrame(const game::PlayerInputFrame& frame);
-        void SendChunkInterestHint();
-        void RequestChunkResync(const game::ChunkCoord& coord, uint32_t clientVersion);
-        void ReconcileFromSnapshot(const net::SnapshotEntity& localEntity);
 
         [[nodiscard]] components::WorldRenderState BuildWorldRenderState() const;
         [[nodiscard]] components::StatusRenderState BuildStatusRenderState() const;
@@ -136,11 +116,11 @@ class ClientRuntime {
         std::optional<raylib::Window> window_;
         std::optional<flecs::world> world_;
 
-        net::TransportGns transport_;
         bool exitRequested_ = false;
         std::unique_ptr<core::IServerLauncher> serverLauncher_;
 
         game::FixedStep fixedStep_;
+        MultiplayerSessionService multiplayerSession_;
         core::SceneManager sceneManager_{};
         input::InputManager inputManager_{};
         core::SingleplayerRuntime singleplayerRuntime_{};

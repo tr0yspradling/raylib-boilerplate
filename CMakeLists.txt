@@ -234,6 +234,8 @@ if(BUILD_GAME_CLIENT)
         src/client/render/world_renderer.hpp
         src/client/runtime/client_runtime.cpp
         src/client/runtime/client_runtime.hpp
+        src/client/runtime/multiplayer_session_service.cpp
+        src/client/runtime/multiplayer_session_service.hpp
         src/client/scenes/menu_scene.hpp
         src/client/scenes/sandbox_scene.hpp
         src/client/scenes/splash_scene.hpp

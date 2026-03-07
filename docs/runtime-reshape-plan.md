@@ -294,10 +294,10 @@ Goal: move runtime control ownership from `ClientRuntime` fields into explicit f
 Goal: move multiplayer session and prediction/presentation state from `ClientRuntime` fields into explicit client-world resources.
 
 ### Current Status (2026-03-06)
-- In progress for the next ownership cleanup slice.
-- Planned behavior:
-  - connect/welcome flags, tick counters, predicted local player state, remote interpolation state, chunk cache state, and debug counters move to a client-world resource
-  - `ClientRuntime` keeps the transport object and delegates behavior through that world-owned session state
+- Completed for the next ownership cleanup slice.
+- Delivered behavior:
+  - connect/welcome flags, tick counters, predicted local player state, remote interpolation state, chunk cache state, and cadence/debug metadata now live on the client world through `runtime::ClientSessionState`
+  - `ClientRuntime` now reads/writes that resource instead of maintaining duplicate multiplayer session fields
 
 ### Changes
 - Add an explicit client-world session resource that owns multiplayer state previously stored in `ClientRuntime`.
@@ -308,7 +308,27 @@ Goal: move multiplayer session and prediction/presentation state from `ClientRun
 - Multiplayer session state is owned by flecs resources instead of `ClientRuntime` fields.
 - Existing multiplayer and local gameplay flows continue to work.
 
-## Phase 10: Runtime Polish, Safety, and Testability
+## Phase 10: Multiplayer Session Service Extraction
+Goal: move transport/session orchestration out of `ClientRuntime` into a dedicated multiplayer runtime service while keeping world-owned state as the source of truth.
+
+### Current Status (2026-03-06)
+- Completed for the next decomposition slice.
+- Delivered behavior:
+  - `ClientRuntime` now delegates transport bootstrap, polling, packet decode/dispatch, connect/disconnect handling, multiplayer cadence sends, and connection metrics queries to `runtime::MultiplayerSessionService`
+  - `runtime::ClientSessionState` remains the shared state contract between the service, client runtime, presentation, and tests
+
+### Changes
+- Add a dedicated client multiplayer session service under `src/client/runtime/` that owns `net::TransportGns`.
+- Move packet handling, handshake, snapshot/chunk handling, and connection metrics queries behind that service boundary.
+- Update `ClientRuntime` to orchestrate around the service instead of directly owning transport/event/message logic.
+- Add focused validation for the new service boundary where practical.
+
+### Acceptance
+- `ClientRuntime` no longer owns the low-level transport/message-handling implementation directly.
+- Existing join, local dedicated, multiplayer gameplay, and disconnect flows continue to work.
+- Build, tests, and a short client startup smoke check pass.
+
+## Phase 11: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.
 
 ### Changes

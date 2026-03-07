@@ -98,8 +98,9 @@ Direct auto-join (dev shortcut):
 - Server runtime phase order is validated by `test_sim_server_pipeline`.
 - Menu/join UI state now lives in flecs-managed resources and is rendered from a built `UiDocument`.
 - Client flow/status/debug/local-start control now also lives in flecs-managed resources on the client world.
+- Multiplayer client session state also lives in flecs-managed resources, while transport/bootstrap/polling/message handling now route through `runtime::MultiplayerSessionService`.
 - Splash, centered status, and gameplay world rendering now live in dedicated render helpers; debug overlay remains separate.
-- The current client runtime is still transitional overall: transport/session mechanics and singleplayer stepping still sit inside `ClientRuntime`.
+- The current client runtime is still transitional overall: the `RuntimeState + SceneManager` bridge, singleplayer stepping, and options persistence/application still sit inside `ClientRuntime`.
 
 ## Controls
 - Move: `A/D` or arrows

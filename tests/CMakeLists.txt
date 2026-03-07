@@ -87,6 +87,13 @@ add_executable(test_sim_client_session_resources sim/client_session_resources.cp
 target_include_directories(test_sim_client_session_resources PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_client_session_resources PRIVATE shared_game)
 
+add_executable(test_sim_client_multiplayer_session_service
+    sim/client_multiplayer_session_service.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/runtime/multiplayer_session_service.cpp
+)
+target_include_directories(test_sim_client_multiplayer_session_service PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_client_multiplayer_session_service PRIVATE shared_game shared_net)
+
 add_test(NAME test_net_serializer_roundtrip COMMAND test_net_serializer_roundtrip)
 add_test(NAME test_net_send_policy COMMAND test_net_send_policy)
 add_test(NAME test_sim_fixed_step COMMAND test_sim_fixed_step)
@@ -107,3 +114,4 @@ add_test(NAME test_sim_server_launcher_process COMMAND test_sim_server_launcher_
 add_test(NAME test_sim_singleplayer_runtime COMMAND test_sim_singleplayer_runtime)
 add_test(NAME test_sim_client_runtime_flow_resources COMMAND test_sim_client_runtime_flow_resources)
 add_test(NAME test_sim_client_session_resources COMMAND test_sim_client_session_resources)
+add_test(NAME test_sim_client_multiplayer_session_service COMMAND test_sim_client_multiplayer_session_service)
