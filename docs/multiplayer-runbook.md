@@ -103,7 +103,8 @@ Direct auto-join (dev shortcut):
 - Singleplayer start/stop/step now routes through `runtime::SingleplayerSessionService` while still publishing gameplay state through the shared client session resource.
 - Options save/apply now routes through `runtime::OptionsService` while the options screen state remains flecs-managed.
 - Splash, centered status, and gameplay world rendering now live in dedicated render helpers; debug overlay remains separate.
-- The current client runtime is in the final polish stage; the remaining planned work is manual GUI smoke and acceptance validation.
+- The planned runtime reshape program is complete; automated acceptance now covers the remaining menu-driven `Start Server`, `Singleplayer`, and `Options` flows.
+- Remaining manual validation is limited to hands-on visual/input smoke if needed.
 
 ## Controls
 - Move: `A/D` or arrows
@@ -146,6 +147,11 @@ If you are validating the `Options` flow specifically, also confirm:
 2. Edit at least player name, default host/port, target FPS, interpolation delay, and debug overlay default.
 3. Save and confirm `client_data/client.cfg` is written.
 4. Restart the client and confirm saved values reload unless explicitly overridden by CLI flags.
+
+Automated acceptance already covers:
+1. `Start Server` launch failure returning to the menu with actionable status text.
+2. `Singleplayer` entry publishing local gameplay state.
+3. `Options` save persisting config and refreshing join defaults.
 
 If you are validating the Phase 4 flecs foundation specifically, also confirm:
 1. `game_server` starts and accepts connections with no runtime regressions.

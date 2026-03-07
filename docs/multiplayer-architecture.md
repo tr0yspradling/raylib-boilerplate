@@ -47,6 +47,7 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 - Multiplayer transport/session orchestration now lives behind `runtime::MultiplayerSessionService`, which owns the transport implementation and mutates the client-world session resource rather than storing duplicate runtime state.
 - Singleplayer start/stop/step behavior now lives behind `runtime::SingleplayerSessionService`, which owns the local singleplayer wrapper and publishes local gameplay state through the client-world session resource.
 - Options save/apply behavior now lives behind `runtime::OptionsService`, which validates and persists config changes while the UI state remains flecs-managed.
+- `ClientRuntime` now exposes a window-independent world-bootstrap seam used by acceptance tests, so runtime flow can be exercised without requiring a live raylib window.
 - Non-UI status presentation is now built explicitly during `PresentationBuild`, and concrete drawing is split across dedicated render helpers.
 - Local dedicated startup now routes through `src/client/core/server_launcher.*`, which launches a sibling `game_server` process and retries localhost connect until the dedicated server is ready or startup is canceled/timed out.
 - Singleplayer now routes through `src/client/core/singleplayer_runtime.*`, which wraps the shared deterministic sim in a transport-free local authoritative sandbox path.
@@ -159,6 +160,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - The extracted multiplayer service now has a focused fake-transport test covering connection events and `ClientHello` dispatch.
 - The extracted singleplayer service now has a focused test covering start/step/stop behavior and session-state publication.
 - The extracted options service now has a focused test covering validation, persistence, and live-safe apply behavior.
+- A new runtime acceptance test now covers the remaining menu-driven `Start Server` failure, `Singleplayer` entry, and `Options` save paths against the real `ClientRuntime` flow without opening a live window.
 
 ## Persistence and Security Status
 Implemented foundations:

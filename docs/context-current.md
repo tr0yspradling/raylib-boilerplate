@@ -3,8 +3,8 @@
 Last updated: 2026-03-07
 
 ## Current Focus
-- Final runtime polish and manual validation after the completed client options-service slice.
-- Confirming the refactored client runtime behaves correctly now that the planned architectural cleanup slices are in place.
+- Runtime reshape program completed through the Phase 14 acceptance/testability slice.
+- Remaining validation work is now limited to optional hands-on GUI smoke rather than missing architecture or missing runtime coverage.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -100,20 +100,25 @@ Last updated: 2026-03-07
   - added `runtime::OptionsService` as the dedicated boundary for options validation, config mutation, persistence, join-default refresh, and live-safe window setting application
   - removed direct options save/apply ownership from `ClientRuntime`, which now delegates saved-options behavior through the service
   - added `test_sim_options_service` to cover the extracted options-service behavior, including persistence and validation failures
+- Implemented the Phase 14 runtime acceptance/testability slice:
+  - extracted window-independent client-world bootstrap into `ClientRuntime::InitializeWorldState(...)`
+  - added `test_sim_client_runtime_acceptance` to cover menu-driven `Start Server` failure, `Singleplayer` entry/state publication, and `Options` save integration
+  - completed the planned runtime reshape program with automated coverage for the remaining menu-driven flows
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`23/23`).
+- Tests: `ctest --preset debug` passing (`24/24`).
 - Runtime sanity: `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15` starts successfully.
 - Client startup sanity: `./build/debug/game_client --host 127.0.0.1 --port 27021 --auto-join --skip-splash` starts successfully alongside the dedicated server.
 - Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully for the local gameplay path.
 - Client startup sanity: `timeout 2 ./build/debug/game_client --skip-splash` reaches a live window and frame loop under the new session-resource path.
-- Manual GUI smoke: not yet run for the full menu-driven `Start Server`, `Singleplayer`, and `Options` paths.
+- Automated acceptance: `test_sim_client_runtime_acceptance` covers the remaining menu-driven `Start Server`, `Singleplayer`, and `Options` flows at the runtime/UI-command level.
+- Manual GUI smoke: still not run for the full hands-on visual/input validation of `Start Server`, `Singleplayer`, and `Options`.
 
 ## Open Risks / Gaps
-- Manual GUI smoke for `Start Server`, `Singleplayer`, and `Options` is still pending.
+- Full hands-on GUI smoke for `Start Server`, `Singleplayer`, and `Options` is still pending if release-style visual/input validation is required.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
 ## Active Plan Docs
@@ -130,8 +135,8 @@ Last updated: 2026-03-07
 - `docs/runtime-phase11-plan.md`
 - `docs/runtime-phase12-plan.md`
 - `docs/runtime-phase13-plan.md`
+- `docs/runtime-phase14-plan.md`
 
 ## Next Recommended Step
-- Finish the planned program with the remaining manual/polish work:
-  - run the pending manual GUI smoke for `Start Server`, `Singleplayer`, and `Options`
-  - refresh any acceptance docs/runbooks from the manual findings
+- If desired, run a brief hands-on GUI acceptance pass for `Start Server`, `Singleplayer`, and `Options` to validate visuals and real input feel.
+- Otherwise, the planned runtime reshape program is complete and the next work can be chosen as new scope rather than leftover cleanup.

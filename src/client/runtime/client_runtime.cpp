@@ -90,15 +90,14 @@ namespace {
 
 namespace runtime {
 
-ClientRuntime::ClientRuntime(ClientConfig config) :
-    config_(std::move(config)),
-    serverLauncher_(std::make_unique<core::ServerLauncherProcess>()),
-    fixedStep_(1.0 / static_cast<double>(std::max(1, config_.simulationTickHz))),
-    multiplayerSession_(config_, fixedStep_) {}
+    ClientRuntime::ClientRuntime(ClientConfig config) :
+        config_(std::move(config)), serverLauncher_(std::make_unique<core::ServerLauncherProcess>()),
+        fixedStep_(1.0 / static_cast<double>(std::max(1, config_.simulationTickHz))),
+        multiplayerSession_(config_, fixedStep_) {}
 
     flecs::world& ClientRuntime::RuntimeWorld() { return *world_; }
 
-const flecs::world& ClientRuntime::RuntimeWorld() const { return *world_; }
+    const flecs::world& ClientRuntime::RuntimeWorld() const { return *world_; }
 
     ClientFlowState& ClientRuntime::FlowState() { return RuntimeWorld().get_mut<ClientFlowState>(); }
 
@@ -108,25 +107,25 @@ const flecs::world& ClientRuntime::RuntimeWorld() const { return *world_; }
         return RuntimeWorld().get_mut<LocalServerStartupState>();
     }
 
-const LocalServerStartupState& ClientRuntime::LocalServerState() const {
-    return RuntimeWorld().get<LocalServerStartupState>();
-}
+    const LocalServerStartupState& ClientRuntime::LocalServerState() const {
+        return RuntimeWorld().get<LocalServerStartupState>();
+    }
 
-ClientSessionState& ClientRuntime::SessionState() {
-    return RuntimeWorld().get_mut<ClientSessionState>();
-}
+    ClientSessionState& ClientRuntime::SessionState() { return RuntimeWorld().get_mut<ClientSessionState>(); }
 
-const ClientSessionState& ClientRuntime::SessionState() const {
-    return RuntimeWorld().get<ClientSessionState>();
-}
+    const ClientSessionState& ClientRuntime::SessionState() const { return RuntimeWorld().get<ClientSessionState>(); }
 
-core::SceneKind ClientRuntime::ActiveScene() const { return core::SceneForRuntime(FlowState().runtime); }
+    core::SceneKind ClientRuntime::ActiveScene() const { return core::SceneForRuntime(FlowState().runtime); }
 
-bool ClientRuntime::Initialize(flecs::world world) {
-    world_ = world;
-    window_.emplace(config_.windowWidth, config_.windowHeight, "raylib boilerplate - multiplayer client");
-    window_->SetTargetFPS(config_.targetFps);
+    bool ClientRuntime::Initialize(flecs::world world) {
+        world_ = world;
+        window_.emplace(config_.windowWidth, config_.windowHeight, "raylib boilerplate - multiplayer client");
+        window_->SetTargetFPS(config_.targetFps);
+        InitializeWorldState(world);
+        return true;
+    }
 
+    void ClientRuntime::InitializeWorldState(flecs::world world) {
         ClientFlowState& flow = world.get_mut<ClientFlowState>();
         flow.runtime.mode = core::RuntimeMode::Boot;
         flow.runtime.splashCompleted = config_.skipSplash;
@@ -134,17 +133,17 @@ bool ClientRuntime::Initialize(flecs::world world) {
         flow.runtime.requestedLocalServerStart = false;
         flow.runtime.joiningInProgress = false;
         flow.runtime.disconnectReason.clear();
-    flow.statusMessage.clear();
-    flow.disconnectReason.clear();
-    flow.debugOverlayEnabled = config_.debugOverlayDefault;
-    flow.splashStartedAt = std::chrono::steady_clock::now();
+        flow.statusMessage.clear();
+        flow.disconnectReason.clear();
+        flow.debugOverlayEnabled = config_.debugOverlayDefault;
+        flow.splashStartedAt = std::chrono::steady_clock::now();
 
-    world.set<LocalServerStartupState>({});
-    ClientSessionState sessionState;
-    sessionState.serverTickRateHz = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
-    world.set<ClientSessionState>(std::move(sessionState));
+        world.set<LocalServerStartupState>({});
+        ClientSessionState sessionState;
+        sessionState.serverTickRateHz = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
+        world.set<ClientSessionState>(std::move(sessionState));
 
-    ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
+        ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
         joinScreenState.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
         world.set<ui::MenuScreenState>({});
         world.set<ui::JoinServerScreenState>(joinScreenState);
@@ -156,7 +155,6 @@ bool ClientRuntime::Initialize(flecs::world world) {
         world.set<ui::UiDocument>({});
         world.set<ui::UiInputState>({});
         PublishScreenState(world);
-        return true;
     }
 
     void ClientRuntime::Shutdown() {
@@ -261,9 +259,7 @@ bool ClientRuntime::Initialize(flecs::world world) {
         }
     }
 
-    void ClientRuntime::PollTransport() {
-        multiplayerSession_.Poll(FlowState(), LocalServerState(), SessionState());
-    }
+    void ClientRuntime::PollTransport() { multiplayerSession_.Poll(FlowState(), LocalServerState(), SessionState()); }
 
     void ClientRuntime::RefreshSessionState(flecs::world world) {
         RefreshRuntimeState();
@@ -281,11 +277,10 @@ bool ClientRuntime::Initialize(flecs::world world) {
         const ClientFlowState& flow = world.get<ClientFlowState>();
         ClientSessionState& session = world.get_mut<ClientSessionState>();
         if (session.latestServerTick > static_cast<game::TickId>(config_.interpolationDelayTicks)) {
-            const float maxTick =
-                static_cast<float>(session.latestServerTick - static_cast<game::TickId>(config_.interpolationDelayTicks));
-            session.renderInterpolationTick =
-                std::min(session.renderInterpolationTick + frameSeconds * static_cast<float>(session.serverTickRateHz),
-                         maxTick);
+            const float maxTick = static_cast<float>(session.latestServerTick -
+                                                     static_cast<game::TickId>(config_.interpolationDelayTicks));
+            session.renderInterpolationTick = std::min(
+                session.renderInterpolationTick + frameSeconds * static_cast<float>(session.serverTickRateHz), maxTick);
         }
 
         RefreshRuntimeState();
@@ -490,12 +485,11 @@ bool ClientRuntime::Initialize(flecs::world world) {
                     {
                         OptionsApplyResult result = optionsService_.Apply(
                             optionsScreenState, config_, joinScreenState, flow.debugOverlayEnabled,
-                            window_.has_value()
-                                ? ApplyWindowSettingsFn{[](int width, int height, int targetFps) {
-                                      ::SetWindowSize(width, height);
-                                      ::SetTargetFPS(targetFps);
-                                  }}
-                                : ApplyWindowSettingsFn{});
+                            window_.has_value() ? ApplyWindowSettingsFn{[](int width, int height, int targetFps) {
+                                ::SetWindowSize(width, height);
+                                ::SetTargetFPS(targetFps);
+                            }}
+                                                : ApplyWindowSettingsFn{});
                         flow.statusMessage = result.statusMessage;
                         if (!result.success) {
                             break;
@@ -1062,8 +1056,8 @@ bool ClientRuntime::Initialize(flecs::world world) {
             return;
         }
 
-        if (FlowState().runtime.mode != core::RuntimeMode::Multiplayer || !session.connected || !session.serverWelcomed ||
-            !IsLocalPlayerReady()) {
+        if (FlowState().runtime.mode != core::RuntimeMode::Multiplayer || !session.connected ||
+            !session.serverWelcomed || !IsLocalPlayerReady()) {
             return;
         }
 

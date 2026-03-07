@@ -391,6 +391,23 @@ Goal: move options persistence/application out of `ClientRuntime` into a dedicat
 ## Phase 14: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.
 
+### Current Status (2026-03-07)
+- Completed for the final planned slice.
+- Delivered behavior:
+  - added higher-level acceptance coverage for the remaining menu-driven paths that were still relying on manual smoke
+  - added a minimal windowless world-bootstrap seam so `ClientRuntime` can be exercised in tests without opening a live window
+  - refreshed acceptance docs to reflect the new automated coverage and the smaller remaining manual-only surface
+
+### Changes
+- Add windowless acceptance coverage for menu-driven `Start Server`, `Singleplayer`, and `Options` flows.
+- Refactor `ClientRuntime` only as needed to support those acceptance tests cleanly.
+- Refresh runbook/context docs so they reflect the new automated acceptance coverage and the remaining truly manual checks.
+
+### Acceptance
+- Remaining menu-driven flows no longer rely only on manual smoke to catch regressions.
+- Any new `ClientRuntime` testability hooks stay minimal and do not alter shipped behavior.
+- Build, tests, and a short client startup smoke check pass.
+
 ## File Impact Map (Planned)
 - Client runtime core:
   - `src/client/game_client.hpp`

@@ -35,7 +35,9 @@ namespace game = shared::game;
 namespace net = shared::net;
 
 namespace runtime {
-class ClientRuntime {
+    struct ClientRuntimeTestHooks;
+
+    class ClientRuntime {
     public:
         explicit ClientRuntime(ClientConfig config);
 
@@ -90,6 +92,7 @@ class ClientRuntime {
                                                           const ui::OptionsScreenState& optionsScreenState,
                                                           const ui::UiInteractionState& interactionState) const;
 
+        void InitializeWorldState(flecs::world world);
         void ResetSessionState();
         void RefreshRuntimeState();
         [[nodiscard]] ClientFlowState& FlowState();
@@ -123,7 +126,9 @@ class ClientRuntime {
         OptionsService optionsService_;
         input::InputManager inputManager_{};
         SingleplayerSessionService singleplayerSession_;
-};
+
+        friend struct ClientRuntimeTestHooks;
+    };
 
 }  // namespace runtime
 
