@@ -90,11 +90,10 @@ namespace {
 
 namespace runtime {
 
-    ClientRuntime::ClientRuntime(ClientConfig config) :
-        config_(std::move(config)), serverLauncher_(std::make_unique<core::ServerLauncherProcess>()),
-        fixedStep_(1.0 / static_cast<double>(std::max(1, config_.simulationTickHz))) {
-        serverTickRateHz_ = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
-    }
+ClientRuntime::ClientRuntime(ClientConfig config) :
+    config_(std::move(config)),
+    serverLauncher_(std::make_unique<core::ServerLauncherProcess>()),
+    fixedStep_(1.0 / static_cast<double>(std::max(1, config_.simulationTickHz))) {}
 
     flecs::world& ClientRuntime::RuntimeWorld() { return *world_; }
 
@@ -108,14 +107,22 @@ namespace runtime {
         return RuntimeWorld().get_mut<LocalServerStartupState>();
     }
 
-    const LocalServerStartupState& ClientRuntime::LocalServerState() const {
-        return RuntimeWorld().get<LocalServerStartupState>();
-    }
+const LocalServerStartupState& ClientRuntime::LocalServerState() const {
+    return RuntimeWorld().get<LocalServerStartupState>();
+}
 
-    bool ClientRuntime::Initialize(flecs::world world) {
-        world_ = world;
-        window_.emplace(config_.windowWidth, config_.windowHeight, "raylib boilerplate - multiplayer client");
-        window_->SetTargetFPS(config_.targetFps);
+ClientSessionState& ClientRuntime::SessionState() {
+    return RuntimeWorld().get_mut<ClientSessionState>();
+}
+
+const ClientSessionState& ClientRuntime::SessionState() const {
+    return RuntimeWorld().get<ClientSessionState>();
+}
+
+bool ClientRuntime::Initialize(flecs::world world) {
+    world_ = world;
+    window_.emplace(config_.windowWidth, config_.windowHeight, "raylib boilerplate - multiplayer client");
+    window_->SetTargetFPS(config_.targetFps);
 
         ClientFlowState& flow = world.get_mut<ClientFlowState>();
         flow.runtime.mode = core::RuntimeMode::Boot;
@@ -124,14 +131,17 @@ namespace runtime {
         flow.runtime.requestedLocalServerStart = false;
         flow.runtime.joiningInProgress = false;
         flow.runtime.disconnectReason.clear();
-        flow.statusMessage.clear();
-        flow.disconnectReason.clear();
-        flow.debugOverlayEnabled = config_.debugOverlayDefault;
-        flow.splashStartedAt = std::chrono::steady_clock::now();
+    flow.statusMessage.clear();
+    flow.disconnectReason.clear();
+    flow.debugOverlayEnabled = config_.debugOverlayDefault;
+    flow.splashStartedAt = std::chrono::steady_clock::now();
 
-        world.set<LocalServerStartupState>({});
+    world.set<LocalServerStartupState>({});
+    ClientSessionState sessionState;
+    sessionState.serverTickRateHz = static_cast<uint16_t>(std::clamp(config_.simulationTickHz, 1, 65535));
+    world.set<ClientSessionState>(std::move(sessionState));
 
-        sceneManager_.SwitchTo(flow.runtime.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
+    sceneManager_.SwitchTo(flow.runtime.splashCompleted ? core::SceneKind::MainMenu : core::SceneKind::Splash);
         ui::JoinServerScreenState& joinScreenState = world.get_mut<ui::JoinServerScreenState>();
         joinScreenState.ResetFromDefaults(config_.serverHost, config_.serverPort, config_.playerName);
         world.set<ui::MenuScreenState>({});
@@ -148,8 +158,9 @@ namespace runtime {
     }
 
     void ClientRuntime::Shutdown() {
-        if (transport_.IsInitialized() && connected_) {
-            transport_.Close(serverConnection_, 0, "client shutdown", false);
+        ClientSessionState& session = SessionState();
+        if (transport_.IsInitialized() && session.connected) {
+            transport_.Close(session.serverConnection, 0, "client shutdown", false);
         }
         if (transport_.IsInitialized()) {
             transport_.Shutdown();
@@ -278,35 +289,37 @@ namespace runtime {
 
     void ClientRuntime::PublishPresentation(flecs::world world, float frameSeconds) {
         const ClientFlowState& flow = world.get<ClientFlowState>();
-        if (latestServerTick_ > static_cast<game::TickId>(config_.interpolationDelayTicks)) {
+        ClientSessionState& session = world.get_mut<ClientSessionState>();
+        if (session.latestServerTick > static_cast<game::TickId>(config_.interpolationDelayTicks)) {
             const float maxTick =
-                static_cast<float>(latestServerTick_ - static_cast<game::TickId>(config_.interpolationDelayTicks));
-            renderInterpolationTick_ =
-                std::min(renderInterpolationTick_ + frameSeconds * static_cast<float>(serverTickRateHz_), maxTick);
+                static_cast<float>(session.latestServerTick - static_cast<game::TickId>(config_.interpolationDelayTicks));
+            session.renderInterpolationTick =
+                std::min(session.renderInterpolationTick + frameSeconds * static_cast<float>(session.serverTickRateHz),
+                         maxTick);
         }
 
         RefreshRuntimeState();
         core::Application::UpdateScene(sceneManager_, flow.runtime);
 
         const auto now = std::chrono::steady_clock::now();
-        const auto sinceLastPing = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPingSentAt_);
-        if (flow.runtime.mode == core::RuntimeMode::Multiplayer && connected_ && sinceLastPing.count() >= 1000) {
-            net::PingMessage ping{.sequence = nextPingSequence_++};
+        const auto sinceLastPing = std::chrono::duration_cast<std::chrono::milliseconds>(now - session.lastPingSentAt);
+        if (flow.runtime.mode == core::RuntimeMode::Multiplayer && session.connected && sinceLastPing.count() >= 1000) {
+            net::PingMessage ping{.sequence = session.nextPingSequence++};
             const std::vector<uint8_t> payload = net::Serialize(ping);
             const std::vector<uint8_t> packet = net::BuildPacket(net::MessageId::Ping, payload);
             std::string error;
-            transport_.Send(serverConnection_, packet,
+            transport_.Send(session.serverConnection, packet,
                             net::SendOptionsForMessage(net::MessageId::Ping, net::MessageDirection::ClientToServer),
                             error);
-            lastPingSentAt_ = now;
+            session.lastPingSentAt = now;
         }
 
         const auto sinceLastChunkHint =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now - lastChunkHintSentAt_);
-        if (flow.runtime.mode == core::RuntimeMode::Multiplayer && connected_ && serverWelcomed_ &&
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - session.lastChunkHintSentAt);
+        if (flow.runtime.mode == core::RuntimeMode::Multiplayer && session.connected && session.serverWelcomed &&
             IsLocalPlayerReady() && sinceLastChunkHint.count() >= 500) {
             SendChunkInterestHint();
-            lastChunkHintSentAt_ = now;
+            session.lastChunkHintSentAt = now;
         }
 
         PublishScreenState(world);
@@ -338,6 +351,7 @@ namespace runtime {
     void ClientRuntime::HandlePlaceholderScreenInput(flecs::world world) {
         ClientFlowState& flow = world.get_mut<ClientFlowState>();
         LocalServerStartupState& localServer = world.get_mut<LocalServerStartupState>();
+        ClientSessionState& session = world.get_mut<ClientSessionState>();
         switch (flow.runtime.mode) {
             case core::RuntimeMode::Boot:
             case core::RuntimeMode::Multiplayer:
@@ -345,8 +359,8 @@ namespace runtime {
                 return;
             case core::RuntimeMode::JoiningServer:
                 if (flow.runtime.joiningInProgress && inputManager_.MenuBackPressed()) {
-                    if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
-                        transport_.Close(serverConnection_, 0, "join canceled", false);
+                    if (transport_.IsInitialized() && session.serverConnection != net::kInvalidConnectionHandle) {
+                        transport_.Close(session.serverConnection, 0, "join canceled", false);
                     }
                     ResetSessionState();
                     if (localServer.startupInProgress) {
@@ -385,6 +399,7 @@ namespace runtime {
     void ClientRuntime::UpdateLocalServerStartup(flecs::world world, std::chrono::steady_clock::time_point now) {
         ClientFlowState& flow = world.get_mut<ClientFlowState>();
         LocalServerStartupState& localServer = world.get_mut<LocalServerStartupState>();
+        ClientSessionState& session = world.get_mut<ClientSessionState>();
         if (flow.runtime.mode != core::RuntimeMode::StartingLocalServer && !localServer.startupInProgress) {
             return;
         }
@@ -407,8 +422,8 @@ namespace runtime {
                 if (!serverLauncher_ ||
                     !serverLauncher_->Launch({.clientExecutablePath = config_.executablePath,
                                               .serverPort = config_.serverPort,
-                                              .simulationTickHz = static_cast<int>(serverTickRateHz_),
-                                              .snapshotRateHz = static_cast<int>(serverSnapshotRateHz_)},
+                                              .simulationTickHz = static_cast<int>(session.serverTickRateHz),
+                                              .snapshotRateHz = static_cast<int>(session.serverSnapshotRateHz)},
                                              launchError)) {
                     FailLocalServerStartup(world, "Failed to launch local dedicated server: " + launchError);
                     return;
@@ -433,7 +448,7 @@ namespace runtime {
             return;
         }
 
-        if (connecting_ || connected_) {
+        if (session.connecting || session.connected) {
             return;
         }
 
@@ -459,7 +474,7 @@ namespace runtime {
 
         flow.runtime.mode = core::RuntimeMode::JoiningServer;
         flow.runtime.joiningInProgress = true;
-        connecting_ = true;
+        session.connecting = true;
         flow.statusMessage = "Connecting to local dedicated server...";
     }
 
@@ -1015,7 +1030,8 @@ namespace runtime {
     }
 
     bool ClientRuntime::BeginJoinServer(flecs::world world) {
-        if (connecting_ || connected_) {
+        ClientSessionState& session = world.get_mut<ClientSessionState>();
+        if (session.connecting || session.connected) {
             return true;
         }
 
@@ -1041,7 +1057,7 @@ namespace runtime {
             return false;
         }
 
-        connecting_ = true;
+        session.connecting = true;
         flow.runtime.joiningInProgress = true;
         flow.statusMessage = "Connecting...";
         return true;
@@ -1049,6 +1065,7 @@ namespace runtime {
 
     void ClientRuntime::BeginSingleplayer(flecs::world world) {
         ClientFlowState& flow = world.get_mut<ClientFlowState>();
+        ClientSessionState& session = world.get_mut<ClientSessionState>();
         ResetSessionState();
         flow.disconnectReason.clear();
         flow.runtime.disconnectReason.clear();
@@ -1058,11 +1075,11 @@ namespace runtime {
 
         singleplayerRuntime_.Start(config_.playerName);
         if (const game::PlayerState* localPlayer = singleplayerRuntime_.LocalPlayer(); localPlayer != nullptr) {
-            predictedLocalPlayer_ = *localPlayer;
-            localPlayerId = localPlayer->playerId;
+            session.predictedLocalPlayer = *localPlayer;
+            session.localPlayerId = localPlayer->playerId;
         }
 
-        serverKinematics_ = singleplayerRuntime_.Kinematics();
+        session.serverKinematics = singleplayerRuntime_.Kinematics();
         flow.runtime.mode = core::RuntimeMode::Singleplayer;
         flow.statusMessage.clear();
         world.get_mut<ui::JoinServerScreenState>().editing = false;
@@ -1086,8 +1103,9 @@ namespace runtime {
     }
 
     bool ClientRuntime::BeginConnectionAttempt(std::string& error) {
-        serverConnection_ = transport_.Connect(config_.serverHost, config_.serverPort, error);
-        return serverConnection_ != net::kInvalidConnectionHandle;
+        ClientSessionState& session = SessionState();
+        session.serverConnection = transport_.Connect(config_.serverHost, config_.serverPort, error);
+        return session.serverConnection != net::kInvalidConnectionHandle;
     }
 
     void ClientRuntime::ReturnToMenu(flecs::world world, std::string statusMessage) {
@@ -1128,15 +1146,16 @@ namespace runtime {
     void ClientRuntime::HandleConnectionEvents() {
         ClientFlowState& flow = FlowState();
         LocalServerStartupState& localServer = LocalServerState();
+        ClientSessionState& session = SessionState();
         const std::vector<net::ConnectionEvent> events = transport_.DrainConnectionEvents();
         for (const net::ConnectionEvent& event : events) {
-            if (event.connection != serverConnection_) {
+            if (event.connection != session.serverConnection) {
                 continue;
             }
 
             if (event.type == net::ConnectionEventType::Connected) {
-                connected_ = true;
-                connecting_ = false;
+                session.connected = true;
+                session.connecting = false;
                 flow.statusMessage = localServer.startupInProgress
                     ? "Connected to local dedicated server, waiting for server welcome..."
                     : "Connected, waiting for server welcome...";
@@ -1146,7 +1165,7 @@ namespace runtime {
 
             if (event.type == net::ConnectionEventType::ClosedByPeer ||
                 event.type == net::ConnectionEventType::ProblemDetectedLocally) {
-                connected_ = false;
+                session.connected = false;
                 flow.disconnectReason = event.reason.empty() ? "connection closed" : event.reason;
                 ResetSessionState();
 
@@ -1170,9 +1189,10 @@ namespace runtime {
 
     void ClientRuntime::HandleIncomingPackets() {
         ClientFlowState& flow = FlowState();
+        ClientSessionState& session = SessionState();
         const std::vector<net::ReceivedPacket> packets = transport_.DrainReceivedPackets();
         for (const net::ReceivedPacket& packet : packets) {
-            if (packet.connection != serverConnection_) {
+            if (packet.connection != session.serverConnection) {
                 continue;
             }
 
@@ -1186,9 +1206,9 @@ namespace runtime {
 
             if (header.protocolVersion != net::kProtocolVersion) {
                 flow.disconnectReason = "protocol version mismatch";
-                connected_ = false;
+                session.connected = false;
                 ResetSessionState();
-                transport_.Close(serverConnection_, 4002, flow.disconnectReason, false);
+                transport_.Close(session.serverConnection, 4002, flow.disconnectReason, false);
                 continue;
             }
 
@@ -1284,6 +1304,7 @@ namespace runtime {
 
     void ClientRuntime::OnConnectedToServer() {
         ClientFlowState& flow = FlowState();
+        ClientSessionState& session = SessionState();
         net::ClientHelloMessage hello;
         hello.requestedProtocolVersion = net::kProtocolVersion;
         hello.buildCompatibilityHash = config_.buildCompatibilityHash;
@@ -1295,22 +1316,23 @@ namespace runtime {
 
         std::string error;
         if (!transport_.Send(
-                serverConnection_, packet,
+                session.serverConnection, packet,
                 net::SendOptionsForMessage(net::MessageId::ClientHello, net::MessageDirection::ClientToServer),
                 error)) {
             flow.disconnectReason = "failed to send ClientHello: " + error;
-            connected_ = false;
+            session.connected = false;
             ResetSessionState();
         }
     }
 
     void ClientRuntime::HandleServerWelcome(const net::ServerWelcomeMessage& message) {
         ClientFlowState& flow = FlowState();
+        ClientSessionState& session = SessionState();
         if (message.protocolVersion != net::kProtocolVersion) {
             flow.disconnectReason = "protocol mismatch";
-            connected_ = false;
+            session.connected = false;
             ResetSessionState();
-            transport_.Close(serverConnection_, 4003, flow.disconnectReason, false);
+            transport_.Close(session.serverConnection, 4003, flow.disconnectReason, false);
             return;
         }
 
@@ -1318,84 +1340,88 @@ namespace runtime {
             game::ValidatePlayerKinematicsConfig(message.playerKinematics);
         if (kinematicsValidation != game::PlayerKinematicsValidationError::None) {
             flow.disconnectReason = std::string{"invalid server kinematics: "} + game::ToString(kinematicsValidation);
-            connected_ = false;
+            session.connected = false;
             ResetSessionState();
-            transport_.Close(serverConnection_, 4004, flow.disconnectReason, false);
+            transport_.Close(session.serverConnection, 4004, flow.disconnectReason, false);
             return;
         }
 
-        serverWelcomed_ = true;
-        localPlayerId = message.playerId;
-        latestServerTick_ = message.serverTick;
-        renderInterpolationTick_ = static_cast<float>(message.serverTick);
-        serverTickRateHz_ = std::max<uint16_t>(1, message.serverTickRateHz);
-        serverSnapshotRateHz_ = std::max<uint16_t>(1, message.snapshotRateHz);
-        serverKinematics_ = message.playerKinematics;
-        fixedStep_.SetStepSeconds(1.0 / static_cast<double>(serverTickRateHz_));
+        session.serverWelcomed = true;
+        session.localPlayerId = message.playerId;
+        session.latestServerTick = message.serverTick;
+        session.renderInterpolationTick = static_cast<float>(message.serverTick);
+        session.serverTickRateHz = std::max<uint16_t>(1, message.serverTickRateHz);
+        session.serverSnapshotRateHz = std::max<uint16_t>(1, message.snapshotRateHz);
+        session.serverKinematics = message.playerKinematics;
+        fixedStep_.SetStepSeconds(1.0 / static_cast<double>(session.serverTickRateHz));
 
-        predictedLocalPlayer_.playerId = message.playerId;
-        predictedLocalPlayer_.entityId = game::EntityId{message.playerId.Value()};
-        predictedLocalPlayer_.displayName = config_.playerName;
-        predictedLocalPlayer_.position = {0.0f, 0.0f};
-        predictedLocalPlayer_.velocity = {0.0f, 0.0f};
-        predictedLocalPlayer_.onGround = true;
-        pendingInputs_.clear();
-        chunksByCoord_.clear();
-        chunkVersionConflictCount_ = 0;
-        serverWorldConfig_ = game::WorldConfig{};
-        hasWorldMetadata_ = false;
+        session.predictedLocalPlayer.playerId = message.playerId;
+        session.predictedLocalPlayer.entityId = game::EntityId{message.playerId.Value()};
+        session.predictedLocalPlayer.displayName = config_.playerName;
+        session.predictedLocalPlayer.position = {0.0f, 0.0f};
+        session.predictedLocalPlayer.velocity = {0.0f, 0.0f};
+        session.predictedLocalPlayer.onGround = true;
+        session.pendingInputs.clear();
+        session.chunksByCoord.clear();
+        session.chunkVersionConflictCount = 0;
+        session.serverWorldConfig = game::WorldConfig{};
+        session.hasWorldMetadata = false;
     }
 
     void ClientRuntime::HandleWorldMetadata(const net::WorldMetadataMessage& message) {
+        ClientSessionState& session = SessionState();
         if (message.chunkWidthTiles == 0 || message.chunkHeightTiles == 0 || message.tileSize == 0 ||
             message.defaultInterestRadiusChunks == 0) {
             std::fprintf(stderr, "[world.chunk] invalid world metadata ignored\n");
             return;
         }
 
-        serverWorldConfig_.chunkWidthTiles = static_cast<int>(message.chunkWidthTiles);
-        serverWorldConfig_.chunkHeightTiles = static_cast<int>(message.chunkHeightTiles);
-        serverWorldConfig_.tileSize = static_cast<int>(message.tileSize);
-        serverWorldConfig_.interestRadiusChunks = static_cast<int>(message.defaultInterestRadiusChunks);
-        hasWorldMetadata_ = true;
+        session.serverWorldConfig.chunkWidthTiles = static_cast<int>(message.chunkWidthTiles);
+        session.serverWorldConfig.chunkHeightTiles = static_cast<int>(message.chunkHeightTiles);
+        session.serverWorldConfig.tileSize = static_cast<int>(message.tileSize);
+        session.serverWorldConfig.interestRadiusChunks = static_cast<int>(message.defaultInterestRadiusChunks);
+        session.hasWorldMetadata = true;
     }
 
     void ClientRuntime::HandleSpawnPlayer(const net::SpawnPlayerMessage& message) {
-        if (message.playerId == localPlayerId) {
-            predictedLocalPlayer_.position = message.spawnPosition;
-            predictedLocalPlayer_.entityId = message.entityId;
-            predictedLocalPlayer_.displayName = message.displayName;
+        ClientSessionState& session = SessionState();
+        if (message.playerId == session.localPlayerId) {
+            session.predictedLocalPlayer.position = message.spawnPosition;
+            session.predictedLocalPlayer.entityId = message.entityId;
+            session.predictedLocalPlayer.displayName = message.displayName;
             return;
         }
 
-        RemotePlayerView& remote = remotePlayers_[message.playerId];
+        RemotePlayerView& remote = session.remotePlayers[message.playerId];
         remote.playerId = message.playerId;
         remote.entityId = message.entityId;
         remote.displayName = message.displayName;
         remote.latestPosition = message.spawnPosition;
-        remote.interpolation.Push({.tick = latestServerTick_, .position = message.spawnPosition});
+        remote.interpolation.Push({.tick = session.latestServerTick, .position = message.spawnPosition});
     }
 
     void ClientRuntime::HandleDespawnEntity(const net::DespawnEntityMessage& message) {
-        for (auto it = remotePlayers_.begin(); it != remotePlayers_.end(); ++it) {
+        ClientSessionState& session = SessionState();
+        for (auto it = session.remotePlayers.begin(); it != session.remotePlayers.end(); ++it) {
             if (it->second.entityId == message.entityId) {
-                remotePlayers_.erase(it);
+                session.remotePlayers.erase(it);
                 return;
             }
         }
     }
 
     void ClientRuntime::HandleSnapshot(const net::SnapshotPayload& snapshot) {
-        latestServerTick_ = snapshot.serverTick;
+        ClientSessionState& session = SessionState();
+        session.latestServerTick = snapshot.serverTick;
 
         std::unordered_set<game::PlayerId, game::IdHash<game::PlayerIdTag>> seenRemotePlayers;
         for (const net::SnapshotEntity& entity : snapshot.entities) {
-            if (entity.playerId == localPlayerId) {
+            if (entity.playerId == session.localPlayerId) {
                 ReconcileFromSnapshot(entity);
                 continue;
             }
 
-            RemotePlayerView& remote = remotePlayers_[entity.playerId];
+            RemotePlayerView& remote = session.remotePlayers[entity.playerId];
             remote.playerId = entity.playerId;
             remote.entityId = entity.entityId;
             remote.displayName = entity.displayName;
@@ -1404,9 +1430,9 @@ namespace runtime {
             seenRemotePlayers.insert(entity.playerId);
         }
 
-        for (auto it = remotePlayers_.begin(); it != remotePlayers_.end();) {
+        for (auto it = session.remotePlayers.begin(); it != session.remotePlayers.end();) {
             if (!seenRemotePlayers.contains(it->first)) {
-                it = remotePlayers_.erase(it);
+                it = session.remotePlayers.erase(it);
             } else {
                 ++it;
             }
@@ -1414,21 +1440,23 @@ namespace runtime {
     }
 
     void ClientRuntime::HandleChunkBaseline(const net::ChunkBaselineMessage& message) {
+        ClientSessionState& session = SessionState();
         if (!message.chunk.IsValid()) {
             std::fprintf(stderr, "[world.chunk] drop invalid baseline %d,%d\n", message.chunk.coord.x,
                          message.chunk.coord.y);
             return;
         }
 
-        ClientChunkState& chunk = chunksByCoord_[message.chunk.coord];
+        ClientChunkState& chunk = session.chunksByCoord[message.chunk.coord];
         chunk.chunk = message.chunk;
-        chunkResyncRequestedAt_.erase(message.chunk.coord);
+        session.chunkResyncRequestedAt.erase(message.chunk.coord);
     }
 
     void ClientRuntime::HandleChunkDelta(const net::ChunkDeltaMessage& message) {
-        auto chunkIt = chunksByCoord_.find(message.delta.coord);
-        if (chunkIt == chunksByCoord_.end()) {
-            ++chunkVersionConflictCount_;
+        ClientSessionState& session = SessionState();
+        auto chunkIt = session.chunksByCoord.find(message.delta.coord);
+        if (chunkIt == session.chunksByCoord.end()) {
+            ++session.chunkVersionConflictCount;
             std::fprintf(stderr, "[world.chunk] delta for unknown chunk %d,%d\n", message.delta.coord.x,
                          message.delta.coord.y);
             RequestChunkResync(message.delta.coord, 0U);
@@ -1437,7 +1465,7 @@ namespace runtime {
 
         game::ChunkData& chunk = chunkIt->second.chunk;
         if (chunk.version.value != message.delta.baseVersion.value) {
-            ++chunkVersionConflictCount_;
+            ++session.chunkVersionConflictCount;
             std::fprintf(stderr, "[world.chunk] version mismatch chunk %d,%d local=%u base=%u\n", message.delta.coord.x,
                          message.delta.coord.y, chunk.version.value, message.delta.baseVersion.value);
             RequestChunkResync(message.delta.coord, chunk.version.value);
@@ -1445,7 +1473,7 @@ namespace runtime {
         }
 
         if (!game::ApplyChunkDelta(chunk, message.delta)) {
-            ++chunkVersionConflictCount_;
+            ++session.chunkVersionConflictCount;
             std::fprintf(stderr, "[world.chunk] invalid delta ops chunk %d,%d ops=%zu\n", message.delta.coord.x,
                          message.delta.coord.y, message.delta.operations.size());
             RequestChunkResync(message.delta.coord, chunk.version.value);
@@ -1453,27 +1481,30 @@ namespace runtime {
     }
 
     void ClientRuntime::HandleChunkUnsubscribe(const net::ChunkUnsubscribeMessage& message) {
+        ClientSessionState& session = SessionState();
         const game::ChunkCoord coord{
             .x = message.chunkX,
             .y = message.chunkY,
         };
-        chunksByCoord_.erase(coord);
-        chunkResyncRequestedAt_.erase(coord);
+        session.chunksByCoord.erase(coord);
+        session.chunkResyncRequestedAt.erase(coord);
     }
 
     void ClientRuntime::HandleResyncRequired(const net::ResyncRequiredMessage& message) {
         ClientFlowState& flow = FlowState();
-        chunksByCoord_.clear();
-        chunkResyncRequestedAt_.clear();
-        chunkVersionConflictCount_ = 0;
+        ClientSessionState& session = SessionState();
+        session.chunksByCoord.clear();
+        session.chunkResyncRequestedAt.clear();
+        session.chunkVersionConflictCount = 0;
         flow.disconnectReason = message.reason;
-        lastChunkHintSentAt_ = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
+        session.lastChunkHintSentAt = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
     }
 
     void ClientRuntime::HandleDisconnectReason(const net::DisconnectReasonMessage& message) {
         ClientFlowState& flow = FlowState();
+        ClientSessionState& session = SessionState();
         flow.disconnectReason = message.reason;
-        connected_ = false;
+        session.connected = false;
         ResetSessionState();
 
         if (flow.runtime.mode == core::RuntimeMode::JoiningServer) {
@@ -1486,70 +1517,59 @@ namespace runtime {
     void ClientRuntime::ResetSessionState() {
         FlowState().runtime.joiningInProgress = false;
         singleplayerRuntime_.Stop();
-        connected_ = false;
-        connecting_ = false;
-        serverWelcomed_ = false;
-        localPlayerId = {};
-        predictedLocalPlayer_ = {};
-        pendingInputs_.clear();
-        remotePlayers_.clear();
-        chunksByCoord_.clear();
-        chunkResyncRequestedAt_.clear();
-        chunkVersionConflictCount_ = 0;
-        serverWorldConfig_ = game::WorldConfig{};
-        hasWorldMetadata_ = false;
-        clientTick_ = 0;
-        latestServerTick_ = 0;
-        renderInterpolationTick_ = 0.0f;
-        nextInputSequence_ = 1;
-        serverConnection_ = net::kInvalidConnectionHandle;
+        ResetClientSessionState(SessionState());
     }
 
     void ClientRuntime::RefreshRuntimeState() {
+        const ClientSessionState& session = SessionState();
         RefreshClientFlowState(FlowState(), LocalServerState(),
                                {
-                                   .connecting = connecting_,
-                                   .connected = connected_,
-                                   .serverWelcomed = serverWelcomed_,
+                                   .connecting = session.connecting,
+                                   .connected = session.connected,
+                                   .serverWelcomed = session.serverWelcomed,
                                    .singleplayerActive = singleplayerRuntime_.IsActive(),
                                });
     }
 
     void ClientRuntime::StepSimulation() {
+        ClientSessionState& session = SessionState();
         if (FlowState().runtime.mode == core::RuntimeMode::Singleplayer) {
             if (!singleplayerRuntime_.IsActive()) {
                 return;
             }
 
-            game::PlayerInputFrame inputFrame = inputManager_.BuildPlayerInputFrame(clientTick_, nextInputSequence_++);
-            ++clientTick_;
+            game::PlayerInputFrame inputFrame =
+                inputManager_.BuildPlayerInputFrame(session.clientTick, session.nextInputSequence++);
+            ++session.clientTick;
 
             singleplayerRuntime_.Step(inputFrame, static_cast<float>(fixedStep_.StepSeconds()));
             if (const game::PlayerState* localPlayer = singleplayerRuntime_.LocalPlayer(); localPlayer != nullptr) {
-                predictedLocalPlayer_ = *localPlayer;
-                localPlayerId = localPlayer->playerId;
+                session.predictedLocalPlayer = *localPlayer;
+                session.localPlayerId = localPlayer->playerId;
             }
-            latestServerTick_ = singleplayerRuntime_.CurrentTick();
-            renderInterpolationTick_ = static_cast<float>(latestServerTick_);
+            session.latestServerTick = singleplayerRuntime_.CurrentTick();
+            session.renderInterpolationTick = static_cast<float>(session.latestServerTick);
             return;
         }
 
-        if (FlowState().runtime.mode != core::RuntimeMode::Multiplayer || !connected_ || !serverWelcomed_ ||
+        if (FlowState().runtime.mode != core::RuntimeMode::Multiplayer || !session.connected || !session.serverWelcomed ||
             !IsLocalPlayerReady()) {
             return;
         }
 
-        game::PlayerInputFrame inputFrame = inputManager_.BuildPlayerInputFrame(clientTick_, nextInputSequence_++);
-        ++clientTick_;
+        game::PlayerInputFrame inputFrame =
+            inputManager_.BuildPlayerInputFrame(session.clientTick, session.nextInputSequence++);
+        ++session.clientTick;
 
         SendInputFrame(inputFrame);
-        pendingInputs_.push_back(inputFrame);
+        session.pendingInputs.push_back(inputFrame);
 
-        physics::MovementSystem::Predict(predictedLocalPlayer_, inputFrame,
-                                         static_cast<float>(fixedStep_.StepSeconds()), serverKinematics_);
+        physics::MovementSystem::Predict(session.predictedLocalPlayer, inputFrame,
+                                         static_cast<float>(fixedStep_.StepSeconds()), session.serverKinematics);
     }
 
     void ClientRuntime::SendInputFrame(const game::PlayerInputFrame& frame) {
+        ClientSessionState& session = SessionState();
         net::InputFrameMessage inputMessage;
         inputMessage.clientTick = frame.clientTick;
         inputMessage.sequence = frame.sequence;
@@ -1561,19 +1581,20 @@ namespace runtime {
 
         std::string error;
         if (!transport_.Send(
-                serverConnection_, packet,
+                session.serverConnection, packet,
                 net::SendOptionsForMessage(net::MessageId::InputFrame, net::MessageDirection::ClientToServer), error)) {
             std::fprintf(stderr, "[net.protocol] input send failed: %s\n", error.c_str());
         }
     }
 
     void ClientRuntime::SendChunkInterestHint() {
-        if (!connected_ || !serverWelcomed_ || !IsLocalPlayerReady()) {
+        ClientSessionState& session = SessionState();
+        if (!session.connected || !session.serverWelcomed || !IsLocalPlayerReady()) {
             return;
         }
 
-        const game::WorldConfig& worldConfig = hasWorldMetadata_ ? serverWorldConfig_ : game::WorldConfig{};
-        const game::ChunkCoord center = game::WorldToChunkCoord(predictedLocalPlayer_.position, worldConfig);
+        const game::WorldConfig& worldConfig = session.hasWorldMetadata ? session.serverWorldConfig : game::WorldConfig{};
+        const game::ChunkCoord center = game::WorldToChunkCoord(session.predictedLocalPlayer.position, worldConfig);
         const net::ChunkInterestHintMessage hint{
             .centerChunkX = center.x,
             .centerChunkY = center.y,
@@ -1585,19 +1606,20 @@ namespace runtime {
 
         std::string error;
         transport_.Send(
-            serverConnection_, packet,
+            session.serverConnection, packet,
             net::SendOptionsForMessage(net::MessageId::ChunkInterestHint, net::MessageDirection::ClientToServer),
             error);
     }
 
     void ClientRuntime::RequestChunkResync(const game::ChunkCoord& coord, uint32_t clientVersion) {
-        if (!connected_ || !serverWelcomed_) {
+        ClientSessionState& session = SessionState();
+        if (!session.connected || !session.serverWelcomed) {
             return;
         }
 
         const auto now = std::chrono::steady_clock::now();
-        const auto it = chunkResyncRequestedAt_.find(coord);
-        if (it != chunkResyncRequestedAt_.end()) {
+        const auto it = session.chunkResyncRequestedAt.find(coord);
+        if (it != session.chunkResyncRequestedAt.end()) {
             const auto since = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second);
             if (since.count() < 250) {
                 return;
@@ -1614,16 +1636,17 @@ namespace runtime {
         const std::vector<uint8_t> packet = net::BuildPacket(net::MessageId::ChunkResyncRequest, payload);
         std::string error;
         if (transport_.Send(
-                serverConnection_, packet,
+                session.serverConnection, packet,
                 net::SendOptionsForMessage(net::MessageId::ChunkResyncRequest, net::MessageDirection::ClientToServer),
                 error)) {
-            chunkResyncRequestedAt_[coord] = now;
+            session.chunkResyncRequestedAt[coord] = now;
         }
     }
 
     void ClientRuntime::ReconcileFromSnapshot(const net::SnapshotEntity& localEntity) {
-        physics::MovementSystem::Reconcile(predictedLocalPlayer_, localEntity, pendingInputs_,
-                                           static_cast<float>(fixedStep_.StepSeconds()), serverKinematics_);
+        ClientSessionState& session = SessionState();
+        physics::MovementSystem::Reconcile(session.predictedLocalPlayer, localEntity, session.pendingInputs,
+                                           static_cast<float>(fixedStep_.StepSeconds()), session.serverKinematics);
     }
 
     void ClientRuntime::PublishScreenState(flecs::world world) {
@@ -1800,27 +1823,28 @@ namespace runtime {
     components::WorldRenderState ClientRuntime::BuildWorldRenderState() const {
         components::WorldRenderState state;
         const ClientFlowState& flow = FlowState();
+        const ClientSessionState& session = SessionState();
 
         if ((flow.runtime.mode == core::RuntimeMode::Singleplayer && singleplayerRuntime_.IsActive() &&
-             localPlayerId.IsValid()) ||
+             session.localPlayerId.IsValid()) ||
             IsLocalPlayerReady()) {
             state.localPlayer = {
-                .playerId = predictedLocalPlayer_.playerId,
-                .entityId = predictedLocalPlayer_.entityId,
-                .displayName = predictedLocalPlayer_.displayName,
-                .position = predictedLocalPlayer_.position,
+                .playerId = session.predictedLocalPlayer.playerId,
+                .entityId = session.predictedLocalPlayer.entityId,
+                .displayName = session.predictedLocalPlayer.displayName,
+                .position = session.predictedLocalPlayer.position,
                 .isLocal = true,
             };
         }
 
-        state.remotePlayers.reserve(remotePlayers_.size());
-        for (const auto& [playerId, remote] : remotePlayers_) {
+        state.remotePlayers.reserve(session.remotePlayers.size());
+        for (const auto& [playerId, remote] : session.remotePlayers) {
             (void)playerId;
             state.remotePlayers.push_back({
                 .playerId = remote.playerId,
                 .entityId = remote.entityId,
                 .displayName = remote.displayName,
-                .position = remote.interpolation.SampleAt(renderInterpolationTick_),
+                .position = remote.interpolation.SampleAt(session.renderInterpolationTick),
                 .isLocal = false,
             });
         }
@@ -1835,27 +1859,31 @@ namespace runtime {
 
     components::NetworkDebugState ClientRuntime::BuildDebugState() const {
         const ClientFlowState& flow = FlowState();
+        const ClientSessionState& session = SessionState();
         components::NetworkDebugState state;
         state.activeScene = sceneManager_.ActiveScene();
         const std::string status = ActiveScreenStatusMessage(flow);
         state.sceneName = ComposeSceneLabel(state.activeScene, status);
-        state.connecting = connecting_;
-        state.connected = connected_;
-        state.welcomed = serverWelcomed_;
+        state.connecting = session.connecting;
+        state.connected = session.connected;
+        state.welcomed = session.serverWelcomed;
         state.disconnectReason = flow.disconnectReason;
         state.runtimeStatusMessage = flow.statusMessage;
-        state.clientTick = clientTick_;
-        state.serverTick = latestServerTick_;
-        state.pendingInputCount = pendingInputs_.size();
-        state.loadedChunkCount = chunksByCoord_.size();
-        state.chunkVersionConflicts = chunkVersionConflictCount_;
-        if (transport_.IsInitialized() && serverConnection_ != net::kInvalidConnectionHandle) {
-            state.metrics = transport_.GetConnectionMetrics(serverConnection_);
+        state.clientTick = session.clientTick;
+        state.serverTick = session.latestServerTick;
+        state.pendingInputCount = session.pendingInputs.size();
+        state.loadedChunkCount = session.chunksByCoord.size();
+        state.chunkVersionConflicts = session.chunkVersionConflictCount;
+        if (transport_.IsInitialized() && session.serverConnection != net::kInvalidConnectionHandle) {
+            state.metrics = transport_.GetConnectionMetrics(session.serverConnection);
         }
         return state;
     }
 
-    bool ClientRuntime::IsLocalPlayerReady() const { return serverWelcomed_ && localPlayerId.IsValid(); }
+    bool ClientRuntime::IsLocalPlayerReady() const {
+        const ClientSessionState& session = SessionState();
+        return session.serverWelcomed && session.localPlayerId.IsValid();
+    }
 
 }  // namespace runtime
 

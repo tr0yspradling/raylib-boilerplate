@@ -58,6 +58,9 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 8 client flow-resource slice is complete:
   - runtime flow ownership now lives in explicit flecs resources instead of `ClientRuntime` fields
   - local dedicated startup state and disconnect/status text are now part of that world-owned control layer
+- Phase 9 client session-resource slice is complete:
+  - multiplayer session, prediction, interpolation, chunk cache state, and cadence/debug metadata now live on the client world through `runtime::ClientSessionState`
+  - transport infrastructure and singleplayer runtime remain local to `ClientRuntime` in this pass
 
 ## Target Runtime Shape
 
@@ -287,7 +290,25 @@ Goal: move runtime control ownership from `ClientRuntime` fields into explicit f
 - Existing menu, join, local dedicated, singleplayer, and options flows continue to work.
 - Returning from `Disconnected` to the menu preserves the disconnect reason as surfaced status text.
 
-## Phase 9: Runtime Polish, Safety, and Testability
+## Phase 9: Client Session Resources
+Goal: move multiplayer session and prediction/presentation state from `ClientRuntime` fields into explicit client-world resources.
+
+### Current Status (2026-03-06)
+- In progress for the next ownership cleanup slice.
+- Planned behavior:
+  - connect/welcome flags, tick counters, predicted local player state, remote interpolation state, chunk cache state, and debug counters move to a client-world resource
+  - `ClientRuntime` keeps the transport object and delegates behavior through that world-owned session state
+
+### Changes
+- Add an explicit client-world session resource that owns multiplayer state previously stored in `ClientRuntime`.
+- Update packet handling, prediction, presentation building, and debug-state publication to read/write that resource.
+- Add focused resource tests for reset/default behavior.
+
+### Acceptance
+- Multiplayer session state is owned by flecs resources instead of `ClientRuntime` fields.
+- Existing multiplayer and local gameplay flows continue to work.
+
+## Phase 10: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.
 
 ### Changes

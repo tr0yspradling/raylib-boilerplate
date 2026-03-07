@@ -38,8 +38,7 @@ namespace game = shared::game;
 namespace net = shared::net;
 
 namespace runtime {
-
-    class ClientRuntime {
+class ClientRuntime {
     public:
         explicit ClientRuntime(ClientConfig config);
 
@@ -59,18 +58,6 @@ namespace runtime {
         [[nodiscard]] bool ShouldExit() const;
 
     private:
-        struct RemotePlayerView {
-            game::PlayerId playerId{};
-            std::string displayName;
-            game::EntityId entityId{};
-            game::Vec2f latestPosition{};
-            game::PositionInterpolationBuffer interpolation;
-        };
-
-        struct ClientChunkState {
-            game::ChunkData chunk;
-        };
-
         void HandleConnectionEvents();
         void HandleIncomingPackets();
         void ConsumeUiCommands(flecs::world world);
@@ -127,6 +114,8 @@ namespace runtime {
         [[nodiscard]] const ClientFlowState& FlowState() const;
         [[nodiscard]] LocalServerStartupState& LocalServerState();
         [[nodiscard]] const LocalServerStartupState& LocalServerState() const;
+        [[nodiscard]] ClientSessionState& SessionState();
+        [[nodiscard]] const ClientSessionState& SessionState() const;
         [[nodiscard]] flecs::world& RuntimeWorld();
         [[nodiscard]] const flecs::world& RuntimeWorld() const;
 
@@ -148,10 +137,6 @@ namespace runtime {
         std::optional<flecs::world> world_;
 
         net::TransportGns transport_;
-        net::ConnectionHandle serverConnection_ = net::kInvalidConnectionHandle;
-        bool connecting_ = false;
-        bool connected_ = false;
-        bool serverWelcomed_ = false;
         bool exitRequested_ = false;
         std::unique_ptr<core::IServerLauncher> serverLauncher_;
 
@@ -159,30 +144,7 @@ namespace runtime {
         core::SceneManager sceneManager_{};
         input::InputManager inputManager_{};
         core::SingleplayerRuntime singleplayerRuntime_{};
-        game::TickId clientTick_ = 0;
-        game::TickId latestServerTick_ = 0;
-        float renderInterpolationTick_ = 0.0f;
-        uint16_t serverTickRateHz_ = 30;
-        uint16_t serverSnapshotRateHz_ = 15;
-        game::PlayerKinematicsConfig serverKinematics_{};
-        game::WorldConfig serverWorldConfig_{};
-        bool hasWorldMetadata_ = false;
-
-        game::PlayerId localPlayerId{};
-        game::PlayerState predictedLocalPlayer_{};
-        std::deque<game::PlayerInputFrame> pendingInputs_;
-        uint32_t nextInputSequence_ = 1;
-
-        std::unordered_map<game::PlayerId, RemotePlayerView, game::IdHash<game::PlayerIdTag>> remotePlayers_;
-        std::unordered_map<game::ChunkCoord, ClientChunkState, game::ChunkCoordHash> chunksByCoord_;
-        std::unordered_map<game::ChunkCoord, std::chrono::steady_clock::time_point, game::ChunkCoordHash>
-            chunkResyncRequestedAt_;
-        uint32_t chunkVersionConflictCount_ = 0;
-
-        std::chrono::steady_clock::time_point lastPingSentAt_{};
-        std::chrono::steady_clock::time_point lastChunkHintSentAt_{};
-        uint32_t nextPingSequence_ = 1;
-    };
+};
 
 }  // namespace runtime
 

@@ -42,6 +42,7 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 - Runtime control flow now also lives on the client world through explicit resources:
   - `runtime::ClientFlowState` owns runtime mode, splash completion, requested actions, status/disconnect text, and debug overlay toggle
   - `runtime::LocalServerStartupState` owns local dedicated startup ownership/retry timing
+- Multiplayer client session state now also lives on the client world through `runtime::ClientSessionState`, which owns the live connection handle/flags, handshake and tick metadata, prediction buffers, remote interpolation state, chunk cache state, and related cadence/debug bookkeeping.
 - Non-UI status presentation is now built explicitly during `PresentationBuild`, and concrete drawing is split across dedicated render helpers.
 - Local dedicated startup now routes through `src/client/core/server_launcher.*`, which launches a sibling `game_server` process and retries localhost connect until the dedicated server is ready or startup is canceled/timed out.
 - Singleplayer now routes through `src/client/core/singleplayer_runtime.*`, which wraps the shared deterministic sim in a transport-free local authoritative sandbox path.
@@ -124,7 +125,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - `src/client/app/`: `ClientApp` composition root and frame loop.
 - `src/client/modules/`: client flecs phase declarations and runtime module registration.
 - `src/client/runtime/`: heavyweight client runtime behavior, still transitional while state is decomposed further.
-- `src/client/runtime/runtime_resources.hpp`: client-world flow/control resources and transition helpers.
+- `src/client/runtime/runtime_resources.hpp`: client-world flow/control/session resources and transition helpers.
 - `src/client/components/`: render/debug presentation state published into the client world.
 - `src/client/core/`: transitional runtime state, command enums, and scene mapping.
 - `src/client/core/server_launcher.*`: local dedicated launcher abstraction + process implementation used by the current `Start Server` flow.
@@ -146,6 +147,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - New world-level tests verify flecs phase ordering for both client and server runtimes.
 - UI state/document tests now cover menu state, join-form state, and document hit-testing/focus traversal helpers.
 - Status presentation tests now cover non-UI status-screen mapping.
+- Client runtime resource tests now cover flow-resource transitions and session-resource reset semantics.
 
 ## Persistence and Security Status
 Implemented foundations:

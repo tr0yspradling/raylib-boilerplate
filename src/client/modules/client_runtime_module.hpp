@@ -24,6 +24,7 @@ struct ClientRuntimeModule {
         world.component<ClientRuntimeRef>();
         world.component<runtime::ClientFlowState>();
         world.component<runtime::LocalServerStartupState>();
+        world.component<runtime::ClientSessionState>();
 
         world.system("ClientCaptureInput").kind(EnsureInputCapturePhase(world)).run([](flecs::iter& it) {
             if (auto* runtime = ResolveClientRuntime(it.world())) {
