@@ -16,11 +16,11 @@
 #include "client/core/menu_model.hpp"
 #include "client/core/runtime_state.hpp"
 #include "client/core/server_launcher.hpp"
-#include "client/core/singleplayer_runtime.hpp"
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
 #include "client/runtime/multiplayer_session_service.hpp"
 #include "client/runtime/runtime_resources.hpp"
+#include "client/runtime/singleplayer_session_service.hpp"
 #include "client/systems/render_system.hpp"
 #include "client/ui/ui_document.hpp"
 #include "client/ui/ui_state.hpp"
@@ -121,7 +121,7 @@ class ClientRuntime {
         game::FixedStep fixedStep_;
         MultiplayerSessionService multiplayerSession_;
         input::InputManager inputManager_{};
-        core::SingleplayerRuntime singleplayerRuntime_{};
+        SingleplayerSessionService singleplayerSession_;
 };
 
 }  // namespace runtime

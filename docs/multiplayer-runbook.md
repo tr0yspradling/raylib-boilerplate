@@ -100,8 +100,9 @@ Direct auto-join (dev shortcut):
 - Client flow/status/debug/local-start control now also lives in flecs-managed resources on the client world.
 - Active client scene publication is now a pure runtime-to-scene mapping instead of a mutable scene-manager bridge.
 - Multiplayer client session state also lives in flecs-managed resources, while transport/bootstrap/polling/message handling now route through `runtime::MultiplayerSessionService`.
+- Singleplayer start/stop/step now routes through `runtime::SingleplayerSessionService` while still publishing gameplay state through the shared client session resource.
 - Splash, centered status, and gameplay world rendering now live in dedicated render helpers; debug overlay remains separate.
-- The current client runtime is still transitional overall: singleplayer stepping and options persistence/application still sit inside `ClientRuntime`.
+- The current client runtime is still transitional overall: options persistence/application still sits inside `ClientRuntime`.
 
 ## Controls
 - Move: `A/D` or arrows

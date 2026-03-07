@@ -67,6 +67,9 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 11 scene-publication cleanup slice is complete:
   - the active client path now derives `core::SceneKind` directly from runtime flow state through a pure helper
   - `ClientRuntime` no longer owns or mutates a `SceneManager`
+- Phase 12 singleplayer-session-service slice is complete:
+  - `ClientRuntime` now delegates singleplayer start/stop/step logic to `runtime::SingleplayerSessionService`
+  - singleplayer gameplay state continues to publish through `runtime::ClientSessionState`
 
 ## Target Runtime Shape
 
@@ -353,7 +356,36 @@ Goal: remove the transitional `RuntimeState + SceneManager` bridge from the acti
 - `ui::ScreenState`, status presentation, and debug overlay still publish the same scene values as before.
 - Build, tests, and a short client startup smoke check pass.
 
-## Phase 12: Runtime Polish, Safety, and Testability
+## Phase 12: Singleplayer Session Service Extraction
+Goal: move singleplayer runtime ownership and stepping out of `ClientRuntime` into a dedicated runtime service while keeping `ClientSessionState` as the published state contract.
+
+### Current Status (2026-03-07)
+- Completed for the next decomposition slice.
+- Delivered behavior:
+  - `ClientRuntime` now delegates singleplayer start/stop/step logic to `runtime::SingleplayerSessionService`
+  - singleplayer gameplay state continues to publish through `runtime::ClientSessionState`
+
+### Changes
+- Add a dedicated singleplayer session service under `src/client/runtime/` that owns `core::SingleplayerRuntime`.
+- Move singleplayer start, stop, step, and session-state publication behind that service boundary.
+- Update `ClientRuntime` to orchestrate around the service instead of directly owning singleplayer simulation behavior.
+- Add focused validation for the new service boundary where practical.
+
+### Acceptance
+- `ClientRuntime` no longer owns the low-level singleplayer start/step/stop implementation directly.
+- Existing singleplayer flow continues to work and still publishes gameplay state through `ClientSessionState`.
+- Build, tests, and a short client startup smoke check pass.
+
+## Phase 13: Options Service Extraction
+Goal: move options persistence/application out of `ClientRuntime` into a dedicated service boundary.
+
+### Current Status (2026-03-07)
+- Planned.
+- Target behavior:
+  - `ClientRuntime` delegates option validation, config mutation, persistence, and live-safe application through a dedicated service
+  - UI options state remains flecs-managed, while persistence/application stop living inline in `ClientRuntime`
+
+## Phase 14: Runtime Polish, Safety, and Testability
 Goal: stabilize flows and prevent regressions.
 
 ## File Impact Map (Planned)

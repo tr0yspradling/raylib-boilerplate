@@ -1,10 +1,10 @@
 # Context Current
 
-Last updated: 2026-03-06
+Last updated: 2026-03-07
 
 ## Current Focus
-- Runtime/service decomposition after the completed client scene-publication cleanup slice.
-- Shrinking the remaining transitional `ClientRuntime` responsibilities now that client flow state, multiplayer session state, transport orchestration, and scene publication are split more cleanly.
+- Runtime/service decomposition after the completed client singleplayer-session-service slice.
+- Shrinking the remaining transitional `ClientRuntime` responsibilities now that client flow state, multiplayer session state, transport orchestration, scene publication, and singleplayer ownership are split more cleanly.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -92,12 +92,16 @@ Last updated: 2026-03-06
   - added pure `core::SceneForRuntime(...)` mapping from runtime flow state to `SceneKind`
   - removed `SceneManager` ownership from the active `ClientRuntime` path
   - updated `ui::ScreenState`, status presentation, debug overlay, and runtime scene-transition tests to use the pure mapping
+- Implemented the Phase 12 singleplayer-session-service slice:
+  - added `runtime::SingleplayerSessionService` as the dedicated boundary for singleplayer start/stop/step behavior and session-state publication
+  - removed direct `SingleplayerRuntime` ownership from `ClientRuntime`, which now delegates the singleplayer path through the service and existing `ClientSessionState`
+  - added `test_sim_singleplayer_session_service` to cover the extracted singleplayer service behavior
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`21/21`).
+- Tests: `ctest --preset debug` passing (`22/22`).
 - Runtime sanity: `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15` starts successfully.
 - Client startup sanity: `./build/debug/game_client --host 127.0.0.1 --port 27021 --auto-join --skip-splash` starts successfully alongside the dedicated server.
 - Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully for the local gameplay path.
@@ -105,7 +109,6 @@ Last updated: 2026-03-06
 - Manual GUI smoke: not yet run for the full menu-driven `Start Server`, `Singleplayer`, and `Options` paths.
 
 ## Open Risks / Gaps
-- Singleplayer stepping and broader local gameplay ownership still live inside `ClientRuntime`.
 - Options persistence is still applied from `ClientRuntime`, even though the live control state is now in flecs resources.
 - Manual GUI smoke for `Start Server`, `Singleplayer`, and `Options` is still pending.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
@@ -122,9 +125,9 @@ Last updated: 2026-03-06
 - `docs/runtime-phase9-plan.md`
 - `docs/runtime-phase10-plan.md`
 - `docs/runtime-phase11-plan.md`
+- `docs/runtime-phase12-plan.md`
 
 ## Next Recommended Step
-- Continue decomposing `ClientRuntime` behavior now that the world owns control flow and multiplayer state, transport lives behind a service, and scene publication is pure:
-  - push singleplayer/runtime-service ownership further out of `ClientRuntime`
+- Continue decomposing `ClientRuntime` behavior now that singleplayer ownership also lives behind a service:
   - move options persistence/application behind a clearer service boundary
   - run the pending manual GUI smoke for `Start Server`, `Singleplayer`, and `Options`

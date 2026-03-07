@@ -1041,13 +1041,7 @@ bool ClientRuntime::Initialize(flecs::world world) {
         flow.runtime.requestedLocalServerStart = false;
         flow.runtime.joiningInProgress = false;
 
-        singleplayerRuntime_.Start(config_.playerName);
-        if (const game::PlayerState* localPlayer = singleplayerRuntime_.LocalPlayer(); localPlayer != nullptr) {
-            session.predictedLocalPlayer = *localPlayer;
-            session.localPlayerId = localPlayer->playerId;
-        }
-
-        session.serverKinematics = singleplayerRuntime_.Kinematics();
+        singleplayerSession_.Start(config_.playerName, session);
         flow.runtime.mode = core::RuntimeMode::Singleplayer;
         flow.statusMessage.clear();
         world.get_mut<ui::JoinServerScreenState>().editing = false;
@@ -1100,8 +1094,9 @@ bool ClientRuntime::Initialize(flecs::world world) {
 
     void ClientRuntime::ResetSessionState() {
         FlowState().runtime.joiningInProgress = false;
-        singleplayerRuntime_.Stop();
-        ResetClientSessionState(SessionState());
+        ClientSessionState& session = SessionState();
+        singleplayerSession_.Stop(session);
+        ResetClientSessionState(session);
     }
 
     void ClientRuntime::RefreshRuntimeState() {
@@ -1111,14 +1106,14 @@ bool ClientRuntime::Initialize(flecs::world world) {
                                    .connecting = session.connecting,
                                    .connected = session.connected,
                                    .serverWelcomed = session.serverWelcomed,
-                                   .singleplayerActive = singleplayerRuntime_.IsActive(),
+                                   .singleplayerActive = singleplayerSession_.IsActive(),
                                });
     }
 
     void ClientRuntime::StepSimulation() {
         ClientSessionState& session = SessionState();
         if (FlowState().runtime.mode == core::RuntimeMode::Singleplayer) {
-            if (!singleplayerRuntime_.IsActive()) {
+            if (!singleplayerSession_.IsActive()) {
                 return;
             }
 
@@ -1126,13 +1121,7 @@ bool ClientRuntime::Initialize(flecs::world world) {
                 inputManager_.BuildPlayerInputFrame(session.clientTick, session.nextInputSequence++);
             ++session.clientTick;
 
-            singleplayerRuntime_.Step(inputFrame, static_cast<float>(fixedStep_.StepSeconds()));
-            if (const game::PlayerState* localPlayer = singleplayerRuntime_.LocalPlayer(); localPlayer != nullptr) {
-                session.predictedLocalPlayer = *localPlayer;
-                session.localPlayerId = localPlayer->playerId;
-            }
-            session.latestServerTick = singleplayerRuntime_.CurrentTick();
-            session.renderInterpolationTick = static_cast<float>(session.latestServerTick);
+            singleplayerSession_.Step(inputFrame, static_cast<float>(fixedStep_.StepSeconds()), session);
             return;
         }
 
@@ -1326,7 +1315,7 @@ bool ClientRuntime::Initialize(flecs::world world) {
         const ClientFlowState& flow = FlowState();
         const ClientSessionState& session = SessionState();
 
-        if ((flow.runtime.mode == core::RuntimeMode::Singleplayer && singleplayerRuntime_.IsActive() &&
+        if ((flow.runtime.mode == core::RuntimeMode::Singleplayer && singleplayerSession_.IsActive() &&
              session.localPlayerId.IsValid()) ||
             IsLocalPlayerReady()) {
             state.localPlayer = {
