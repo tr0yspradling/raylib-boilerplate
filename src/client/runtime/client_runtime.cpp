@@ -320,6 +320,10 @@ void ClientRuntime::HandlePlaceholderScreenInput(flecs::world world) {
         }
         return;
     case core::RuntimeMode::Singleplayer:
+        if (inputManager_.MenuBackPressed()) {
+            ReturnToMenu(world);
+        }
+        return;
     case core::RuntimeMode::Options:
     case core::RuntimeMode::Disconnected:
         if (inputManager_.MenuSelectPressed() || inputManager_.MenuBackPressed()) {
@@ -690,8 +694,7 @@ void ClientRuntime::ActivateMenuAction(flecs::world world, core::MenuAction acti
         world.get_mut<ui::UiInteractionState>().focusedWidget.reset();
         return;
     case core::MenuAction::Singleplayer:
-        runtimeState_.mode = core::RuntimeMode::Singleplayer;
-        runtimeStatusMessage_ = "Singleplayer runtime is planned for a later phase";
+        BeginSingleplayer(world);
         return;
     case core::MenuAction::Options:
         runtimeState_.mode = core::RuntimeMode::Options;
@@ -733,6 +736,27 @@ bool ClientRuntime::BeginJoinServer(flecs::world world) {
     return true;
 }
 
+void ClientRuntime::BeginSingleplayer(flecs::world world) {
+    ResetSessionState();
+    disconnectReason_.clear();
+    runtimeState_.disconnectReason.clear();
+    runtimeState_.requestedJoin = false;
+    runtimeState_.requestedLocalServerStart = false;
+    runtimeState_.joiningInProgress = false;
+
+    singleplayerRuntime_.Start(config_.playerName);
+    if (const game::PlayerState* localPlayer = singleplayerRuntime_.LocalPlayer(); localPlayer != nullptr) {
+        predictedLocalPlayer_ = *localPlayer;
+        localPlayerId = localPlayer->playerId;
+    }
+
+    serverKinematics_ = singleplayerRuntime_.Kinematics();
+    runtimeState_.mode = core::RuntimeMode::Singleplayer;
+    runtimeStatusMessage_.clear();
+    world.get_mut<ui::JoinServerScreenState>().editing = false;
+    world.get_mut<ui::UiInteractionState>().focusedWidget.reset();
+}
+
 bool ClientRuntime::EnsureTransportInitialized(std::string& error) {
     if (transport_.IsInitialized()) {
         error.clear();
@@ -754,6 +778,7 @@ bool ClientRuntime::BeginConnectionAttempt(std::string& error) {
 }
 
 void ClientRuntime::ReturnToMenu(flecs::world world, std::string statusMessage) {
+    ResetSessionState();
     disconnectReason_.clear();
     runtimeState_.disconnectReason.clear();
     runtimeStatusMessage_ = std::move(statusMessage);
@@ -1121,6 +1146,7 @@ void ClientRuntime::HandleDisconnectReason(const net::DisconnectReasonMessage& m
 }
 
 void ClientRuntime::ResetSessionState() {
+    singleplayerRuntime_.Stop();
     connected_ = false;
     connecting_ = false;
     serverWelcomed_ = false;
@@ -1184,7 +1210,12 @@ void ClientRuntime::RefreshRuntimeState() {
         }
         return;
     case core::RuntimeMode::StartingLocalServer:
+        return;
     case core::RuntimeMode::Singleplayer:
+        if (!singleplayerRuntime_.IsActive()) {
+            runtimeState_.mode = core::RuntimeMode::Menu;
+        }
+        return;
     case core::RuntimeMode::Options:
     case core::RuntimeMode::Disconnected:
         return;
@@ -1192,6 +1223,24 @@ void ClientRuntime::RefreshRuntimeState() {
 }
 
 void ClientRuntime::StepSimulation() {
+    if (runtimeState_.mode == core::RuntimeMode::Singleplayer) {
+        if (!singleplayerRuntime_.IsActive()) {
+            return;
+        }
+
+        game::PlayerInputFrame inputFrame = inputManager_.BuildPlayerInputFrame(clientTick_, nextInputSequence_++);
+        ++clientTick_;
+
+        singleplayerRuntime_.Step(inputFrame, static_cast<float>(fixedStep_.StepSeconds()));
+        if (const game::PlayerState* localPlayer = singleplayerRuntime_.LocalPlayer(); localPlayer != nullptr) {
+            predictedLocalPlayer_ = *localPlayer;
+            localPlayerId = localPlayer->playerId;
+        }
+        latestServerTick_ = singleplayerRuntime_.CurrentTick();
+        renderInterpolationTick_ = static_cast<float>(latestServerTick_);
+        return;
+    }
+
     if (runtimeState_.mode != core::RuntimeMode::Multiplayer || !connected_ || !serverWelcomed_ || !IsLocalPlayerReady()) {
         return;
     }
@@ -1387,7 +1436,8 @@ ui::UiDocument ClientRuntime::BuildJoinDocument(const ui::ScreenState& screenSta
 components::WorldRenderState ClientRuntime::BuildWorldRenderState() const {
     components::WorldRenderState state;
 
-    if (IsLocalPlayerReady()) {
+    if ((runtimeState_.mode == core::RuntimeMode::Singleplayer && singleplayerRuntime_.IsActive() && localPlayerId.IsValid()) ||
+        IsLocalPlayerReady()) {
         state.localPlayer = {
             .playerId = predictedLocalPlayer_.playerId,
             .entityId = predictedLocalPlayer_.entityId,

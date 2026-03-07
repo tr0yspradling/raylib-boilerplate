@@ -56,6 +56,8 @@ src/
 8. `Start Server` now launches a sibling dedicated server process through the
    current `server_launcher` abstraction and retries localhost connect until
    the server is ready.
+9. `Singleplayer` now runs through a local authoritative wrapper over the
+   shared deterministic sim with no transport layer.
 
 ## Current Client Phase Order
 
@@ -87,8 +89,8 @@ src/
   remaining transitional runtime ownership.
 - Move more client runtime/session state into explicit flecs resources/components
   instead of relying on transitional scene-switch mapping.
-- Replace the remaining placeholder runtime flows (`Singleplayer`, `Options`)
-  with real implementations on top of the current UI/document path.
+- Replace the remaining placeholder runtime flow (`Options`) with a real
+  implementation on top of the current UI/document path.
 - Continue removing the remaining transitional routing from the thin render
   coordinator once more presentation state is explicit.
 - Decompose the server runtime into narrower session/router/replication-style

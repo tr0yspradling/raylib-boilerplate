@@ -24,12 +24,13 @@ namespace client::render {
         state.footer = "Press Esc to cancel";
         break;
     case core::SceneKind::StartingServer:
-        state.title = "Start Server (Placeholder)";
-        state.subtitle = runtimeStatus.empty() ? "Not implemented in this slice" : std::string{runtimeStatus};
+        state.title = "Starting Local Dedicated Server";
+        state.subtitle = runtimeStatus.empty() ? "Launching sibling game_server..." : std::string{runtimeStatus};
         break;
     case core::SceneKind::GameplaySingleplayer:
-        state.title = "Singleplayer (Placeholder)";
-        state.subtitle = runtimeStatus.empty() ? "Not implemented in this slice" : std::string{runtimeStatus};
+        state.title = "Singleplayer Sandbox";
+        state.subtitle = runtimeStatus.empty() ? "Local authoritative sandbox active" : std::string{runtimeStatus};
+        state.footer = "Press Esc to return to menu";
         break;
     case core::SceneKind::Options:
         state.title = "Options (Placeholder)";

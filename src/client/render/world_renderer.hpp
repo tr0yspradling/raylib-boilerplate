@@ -27,8 +27,8 @@ public:
                                                         static_cast<int>(position.y) - 36, 18);
         }
 
-        raylib::Color{140, 165, 185, 255}.DrawText("Move: A/D or arrows | Jump: Space | Tab net overlay", 20,
-                                                   height - 36, 20);
+        raylib::Color{140, 165, 185, 255}.DrawText("Move: A/D or arrows | Jump: Space | Esc menu | Tab debug overlay",
+                                                   20, height - 36, 20);
     }
 
 private:

@@ -3,8 +3,8 @@
 Last updated: 2026-03-06
 
 ## Current Focus
-- Phase 5 local dedicated launcher flow on top of the flecs runtime foundation.
-- Shrinking the remaining transitional `ClientRuntime` responsibilities after `Start Server` became a real runtime path.
+- Phase 6 singleplayer runtime on top of the flecs runtime foundation.
+- Shrinking the remaining transitional `ClientRuntime` responsibilities after `Start Server` and `Singleplayer` became real runtime paths.
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -64,22 +64,29 @@ Last updated: 2026-03-06
   - replaced the `Start Server` placeholder with a real `MainMenu -> StartingLocalServer -> Connecting -> GameplayMultiplayer` flow
   - added localhost readiness retry, timeout/failure messaging, and startup cancel cleanup
   - added `test_sim_server_launcher_process` to cover sibling path resolution and launch command construction
+- Implemented the Phase 6 singleplayer slice:
+  - added `core::SingleplayerRuntime` as a transport-free local authoritative wrapper around `shared::game::GameState`
+  - replaced the `Singleplayer` placeholder with a real `MainMenu -> GameplaySingleplayer` local sandbox path
+  - reused the gameplay world renderer for singleplayer movement/jump visualization
+  - added `test_sim_singleplayer_runtime` to cover local spawn, movement, jump, and shutdown semantics
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`16/16`).
+- Tests: `ctest --preset debug` passing (`17/17`).
 - Runtime sanity: `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15` starts successfully.
 - Client startup sanity: `./build/debug/game_client --host 127.0.0.1 --port 27021 --auto-join --skip-splash` starts successfully alongside the dedicated server.
-- Manual GUI smoke: not yet run for the full `Start Server` menu path.
+- Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully for the local gameplay path.
+- Manual GUI smoke: not yet run for the full menu-driven `Start Server` and `Singleplayer` paths.
 
 ## Open Risks / Gaps
 - Client runtime flow still depends on transitional `RuntimeState` + `SceneManager` internals behind the flecs shell.
 - Transport/session state and most orchestration logic still live inside `ClientRuntime`.
-- The remaining major client/runtime work is state/orchestration decomposition plus implementation of the remaining placeholder flows.
-- `Singleplayer` and `Options` still remain placeholders.
+- The remaining major client/runtime work is state/orchestration decomposition plus implementation of the remaining placeholder flow.
+- `Options` still remains a placeholder.
 - Local dedicated server ownership/retry state is runtime-local today; it has not yet moved into explicit flecs resources/components.
+- Singleplayer ownership/state is also runtime-local today; it has not yet moved into explicit flecs resources/components.
 - Post-multiplayer disconnect reason retention after returning to menu is still pending.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
@@ -89,9 +96,10 @@ Last updated: 2026-03-06
 - `docs/runtime-phase2-plan.md`
 - `docs/runtime-phase4-plan.md`
 - `docs/runtime-phase5-plan.md`
+- `docs/runtime-phase6-plan.md`
 
 ## Next Recommended Step
 - Continue decomposing runtime state inside the flecs worlds:
   - move local-start/session ownership and screen flow out of `ClientRuntime` into explicit flecs resources/services
-  - implement the remaining real `Singleplayer` and `Options` flows on top of the current UI/document path
+  - implement the remaining real `Options` flow on top of the current UI/document path
   - remove more of the transitional `RuntimeState + SceneManager` dependency from the client shell

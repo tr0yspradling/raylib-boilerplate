@@ -148,4 +148,5 @@ cmake -S . -B build `
 - `src/client/ui/` now contains flecs-managed menu/join UI resources, a `UiDocument`, and a dedicated UI renderer.
 - `src/client/render/` now contains dedicated background, splash, status, and gameplay render helpers.
 - `src/client/core/server_launcher.*` now owns the process-based local dedicated launcher used by `Start Server`.
-- State/orchestration decomposition is still in progress; `Singleplayer` and `Options` remain placeholder flows.
+- `src/client/core/singleplayer_runtime.*` now owns the transport-free local authoritative sandbox used by `Singleplayer`.
+- State/orchestration decomposition is still in progress; `Options` remains a placeholder flow.

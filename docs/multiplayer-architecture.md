@@ -41,6 +41,7 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 - Menu/join screen state, input snapshots, UI interaction state, and queued UI commands now live as flecs-managed resources on the client world.
 - Non-UI status presentation is now built explicitly during `PresentationBuild`, and concrete drawing is split across dedicated render helpers.
 - Local dedicated startup now routes through `src/client/core/server_launcher.*`, which launches a sibling `game_server` process and retries localhost connect until the dedicated server is ready or startup is canceled/timed out.
+- Singleplayer now routes through `src/client/core/singleplayer_runtime.*`, which wraps the shared deterministic sim in a transport-free local authoritative sandbox path.
 
 ## Authority Model
 - Server owns gameplay truth (`GameState` in `src/shared/game/game_state.hpp`).
@@ -96,6 +97,10 @@ Located in `src/shared/net/`:
   - `Start Server` launches a sibling `game_server`
   - client remains in `StartingServer` until connect succeeds
   - cancel/failure returns to the menu with surfaced status text
+- Menu-driven singleplayer flow:
+  - `Singleplayer` starts a local authoritative `GameState`
+  - gameplay rendering/input are reused without any transport layer
+  - `Esc` returns to the menu
 
 ## Lanes and Reliability
 Lane policy in `src/shared/net/lanes.hpp`:
@@ -114,6 +119,7 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - `src/client/components/`: render/debug presentation state published into the client world.
 - `src/client/core/`: transitional runtime state, command enums, and scene mapping.
 - `src/client/core/server_launcher.*`: local dedicated launcher abstraction + process implementation used by the current `Start Server` flow.
+- `src/client/core/singleplayer_runtime.*`: transport-free local authoritative wrapper used by the current `Singleplayer` flow.
 - `src/client/input/`: input capture producing shared input frames.
 - `src/client/physics/`: prediction/reconciliation helpers on shared sim.
 - `src/client/scenes/`: scene captions and metadata still used by current presentation flow.

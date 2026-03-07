@@ -19,6 +19,7 @@
 #include "client/core/runtime_state.hpp"
 #include "client/core/scene_manager.hpp"
 #include "client/core/server_launcher.hpp"
+#include "client/core/singleplayer_runtime.hpp"
 #include "client/input/input_manager.hpp"
 #include "client/physics/movement_system.hpp"
 #include "client/systems/render_system.hpp"
@@ -80,6 +81,7 @@ private:
     void HandleJoinFormInteraction(flecs::world world, const ui::UiDocument& document, const ui::UiInputState& inputState);
     void ApplyJoinFormTextInput(ui::JoinServerScreenState& joinScreenState, const ui::UiInputState& inputState) const;
     void ActivateMenuAction(flecs::world world, core::MenuAction action);
+    void BeginSingleplayer(flecs::world world);
     bool BeginJoinServer(flecs::world world);
     [[nodiscard]] bool EnsureTransportInitialized(std::string& error);
     [[nodiscard]] bool BeginConnectionAttempt(std::string& error);
@@ -146,6 +148,7 @@ private:
     core::SceneManager sceneManager_{};
     core::RuntimeState runtimeState_{};
     input::InputManager inputManager_{};
+    core::SingleplayerRuntime singleplayerRuntime_{};
     game::TickId clientTick_ = 0;
     game::TickId latestServerTick_ = 0;
     float renderInterpolationTick_ = 0.0f;

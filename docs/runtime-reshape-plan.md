@@ -26,8 +26,8 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 2A is complete:
   - startup defaults to splash -> main menu (no eager connect)
   - interactive menu navigation/action dispatch is wired
-  - `Join Server`, `Start Server`, and `Quit` are fully wired
-  - `Singleplayer` / `Options` still route to placeholders
+  - `Join Server`, `Start Server`, `Singleplayer`, and `Quit` are fully wired
+  - `Options` still routes to a placeholder
 - Phase 3 join-form slice is complete:
   - menu `Join Server` opens editable host/port/name form state
   - `JoinServer` (form) and `Connecting` (active network attempt) are now distinct runtime scenes
@@ -49,6 +49,9 @@ This plan preserves the authoritative multiplayer architecture and keeps raylib 
 - Phase 5 local dedicated launcher slice is complete:
   - `Start Server` now launches a sibling `game_server` process through `core::IServerLauncher`
   - client startup retries localhost connect until the dedicated server is ready, times out cleanly, and supports cancel cleanup
+- Phase 6 singleplayer slice is complete:
+  - `Singleplayer` now runs through a transport-free local authoritative sim wrapper over `shared::game::GameState`
+  - gameplay rendering/input are reused for the first local sandbox pass
 
 ## Target Runtime Shape
 
@@ -93,10 +96,10 @@ Goal: present interactive menu options in client runtime.
   - menu-first startup is now default
   - `--auto-join` / `--skip-splash` flags are implemented
   - interactive menu navigation + action dispatch is wired
-  - `Join Server` and `Quit` are fully wired
-  - `Start Server` / `Singleplayer` / `Options` route to placeholders
+  - `Join Server`, `Start Server`, `Singleplayer`, and `Quit` are fully wired
+  - `Options` still routes to a placeholder
 - Remaining for full Phase 2:
-  - replace the remaining placeholder routes with real flows (`Singleplayer`, `Options`)
+  - replace the remaining placeholder route with a real flow (`Options`)
 
 ### Changes
 - Add menu rendering + keyboard/gamepad navigation:
@@ -161,7 +164,7 @@ Goal: make flecs the active runtime architecture for both client and server befo
 - Remaining Phase 4 work:
   - move more runtime/session state into explicit flecs resources/components
   - continue removing the transitional `RuntimeState + SceneManager` layer
-  - implement the remaining real `Singleplayer` and `Options` flows on top of the new UI/presentation structure
+  - implement the remaining real `Options` flow on top of the new UI/presentation structure
 
 ### Changes
 - Introduce `ClientApp` / `ServerApp` composition roots backed by `flecs::world`.
@@ -205,6 +208,16 @@ Goal: menu option starts local dedicated server for quick local play.
 
 ## Phase 6: Singleplayer Runtime (Authoritative Local Sim Path)
 Goal: provide a no-network singleplayer mode while preserving authoritative logic principles.
+
+### Current Status (2026-03-06)
+- Completed for the first implementation slice.
+- Delivered behavior:
+  - transport-free local authoritative player sim
+  - reuse of existing gameplay render/input paths
+  - `Esc` return path back to the main menu
+- Follow-up still open:
+  - move singleplayer ownership/state out of transitional `ClientRuntime`
+  - expand beyond the initial sandbox into save/load and broader local-world behavior later
 
 ### Changes
 - Add singleplayer runtime path using shared simulation types:

@@ -220,6 +220,8 @@ if(BUILD_GAME_CLIENT)
         src/client/core/server_launcher.hpp
         src/client/core/server_launcher_process.hpp
         src/client/core/server_launcher_process.cpp
+        src/client/core/singleplayer_runtime.hpp
+        src/client/core/singleplayer_runtime.cpp
         src/client/core/scene.hpp
         src/client/core/scene_manager.hpp
         src/client/input/input_manager.hpp

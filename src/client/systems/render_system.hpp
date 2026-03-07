@@ -34,10 +34,12 @@ public:
             break;
         case core::SceneKind::Connecting:
         case core::SceneKind::StartingServer:
-        case core::SceneKind::GameplaySingleplayer:
         case core::SceneKind::Options:
         case core::SceneKind::Disconnected:
             render::StatusRenderer::Draw(status, width, height);
+            break;
+        case core::SceneKind::GameplaySingleplayer:
+            render::WorldRenderer::Draw(world, width, height);
             break;
         case core::SceneKind::GameplayMultiplayer:
             render::WorldRenderer::Draw(world, width, height);

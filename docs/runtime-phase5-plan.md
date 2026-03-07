@@ -73,7 +73,7 @@
 - Remaining risks/blockers:
   - Local dedicated ownership still lives inside the transitional `ClientRuntime` service rather than explicit flecs resources/components.
   - Full manual GUI validation of the `Start Server` menu path is still pending; the current validation covers build/tests plus concurrent client/server startup sanity.
-  - `Singleplayer` and `Options` remain placeholder flows for later phases.
+  - `Options` remains a placeholder flow for a later phase.
 
 ### Validation
 - `cmake --build --preset debug -j`

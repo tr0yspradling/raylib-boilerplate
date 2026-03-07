@@ -83,6 +83,7 @@ Client 2:
 After launch, use the main menu:
 - Select `Start Server` to launch a sibling local dedicated server and auto-join localhost.
 - Select `Join Server` to open the join form.
+- Select `Singleplayer` to enter the local sandbox without transport or a server process.
 - Edit host/port/name as needed, then select `Connect`.
 
 Direct auto-join (dev shortcut):
@@ -108,6 +109,7 @@ Direct auto-join (dev shortcut):
 - Menu / join mouse support: hover and left-click
 - Join form editing: select `Host`/`Port`/`Name`, type text, `Backspace` to erase, `Enter`/`Esc` to stop editing
 - While starting local dedicated or connecting: `Esc` cancels and returns to menu
+- While in singleplayer gameplay: `Esc` returns to menu
 - Return from placeholder/disconnected screens: `Enter` or `Esc`
 
 ## Smoke Test Checklist
@@ -125,6 +127,12 @@ If you are validating the local dedicated `Start Server` flow specifically, also
 2. Client transitions through `StartingServer -> Connecting -> GameplayMultiplayer`.
 3. Press `Esc` during startup and confirm the launched dedicated server stops and the client returns to menu.
 4. Trigger a launch failure or timeout and confirm the menu shows actionable status text.
+
+If you are validating the `Singleplayer` flow specifically, also confirm:
+1. From the main menu, select `Singleplayer`.
+2. Client transitions directly into `GameplaySingleplayer` without starting transport or `game_server`.
+3. Movement and jump work with the same shared sim rules as multiplayer prediction.
+4. Press `Esc` and confirm the client returns to the menu cleanly.
 
 If you are validating the Phase 4 flecs foundation specifically, also confirm:
 1. `game_server` starts and accepts connections with no runtime regressions.
