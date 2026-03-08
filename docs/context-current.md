@@ -1,9 +1,10 @@
 # Context Current
 
-Last updated: 2026-03-07
+Last updated: 2026-03-08
 
 ## Current Focus
 - Runtime reshape program completed through the Phase 14 acceptance/testability slice.
+- Added a new-project feature inventory guide under `docs/project-feature-guide.md` so implemented, partial, and planned features are documented in one place.
 - Remaining validation work is now limited to an operator-run hands-on GUI smoke pass if release-style input validation is required.
 
 ## Recent Completed Work
@@ -104,6 +105,10 @@ Last updated: 2026-03-07
   - extracted window-independent client-world bootstrap into `ClientRuntime::InitializeWorldState(...)`
   - added `test_sim_client_runtime_acceptance` to cover menu-driven `Start Server` failure, `Singleplayer` entry/state publication, and `Options` save integration
   - completed the planned runtime reshape program with automated coverage for the remaining menu-driven flows
+- Added a new-project feature inventory guide:
+  - created `docs/project-feature-guide.md`
+  - grouped repo capabilities into implemented, partial/scaffolded, and planned follow-on work
+  - linked the guide from `README.md` for easier discovery
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
 
 ## Validation Status
@@ -143,4 +148,4 @@ Last updated: 2026-03-07
 
 ## Next Recommended Step
 - If desired, run a brief operator-driven GUI acceptance pass for `Start Server`, `Singleplayer`, and `Options` from a macOS session with Accessibility/Input Monitoring enabled for the automation tool or by manual keyboard/mouse interaction.
-- Otherwise, the planned runtime reshape program is complete and the next work can be chosen as new scope rather than leftover cleanup.
+- Otherwise, use `docs/project-feature-guide.md` to choose the next scope from the documented planned feature areas rather than leftover runtime-reshape cleanup.

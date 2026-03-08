@@ -11,6 +11,9 @@ simulation stays plain deterministic C++ under `src/shared/game/`.
 - **Shared deterministic sim:** gameplay rules remain raylib-free under `src/shared/game/`.
 - **Preset-backed workflow:** build, test, and runtime outputs live under `build/<preset>/`.
 
+For a shipped-vs-planned feature inventory aimed at new projects, see
+[`docs/project-feature-guide.md`](docs/project-feature-guide.md).
+
 ## Controls
 
 - `W/S` or arrow keys – menu navigation.

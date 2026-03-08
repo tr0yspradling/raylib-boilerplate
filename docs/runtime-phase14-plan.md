@@ -1,5 +1,57 @@
 # Runtime Reshape: Phase 14 Execution Plan
 
+## Documentation Slice (2026-03-08): Feature Inventory Guide for New Projects
+
+### Current Scope
+- Add a single onboarding/reference document that explains what this boilerplate already implements and what remains planned or scaffolded.
+- Make the guide useful for new projects by grouping features by subsystem instead of by historical phase number.
+- Keep the content aligned with the current runtime, networking, validation, and asset-pipeline docs without inventing roadmap scope.
+
+### Assumptions
+- The runtime reshape program remains complete; this slice documents the resulting state rather than reopening runtime implementation work.
+- New projects need a clear separation between:
+  - production-ready or actively implemented features
+  - partial foundations/scaffolding already present in the repo
+  - planned follow-on work that is documented but not yet built
+- A README link is warranted so the new guide is discoverable from the repository entry point.
+
+### Concrete File Touch List
+- `docs/runtime-phase14-plan.md`
+- `docs/project-feature-guide.md` (new)
+- `docs/context-current.md`
+- `README.md`
+
+### Acceptance Criteria
+- A new guide exists under `docs/` that inventories the major implemented features across client runtime, server/runtime architecture, networking, simulation, config, and validation.
+- The guide clearly distinguishes implemented behavior from scaffolded or planned work so a new project can assess fit without overstating maturity.
+- The repository entry point links to the guide.
+- Validation gate passes:
+  - `cmake --build --preset debug -j`
+  - `ctest --preset debug`
+
+### Status
+- Completed.
+
+### Progress Update
+- Completed work:
+  - Added `docs/project-feature-guide.md` as a new-project feature inventory covering implemented runtime, networking, server, simulation, and validation capabilities.
+  - Split the guide into three maturity buckets so it does not overstate repo readiness:
+    - implemented and usable today
+    - implemented foundations with partial follow-through
+    - planned follow-on work
+  - Linked the new guide from `README.md` so it is discoverable from the repository entry point.
+- Changed files:
+  - `docs/runtime-phase14-plan.md`
+  - `docs/project-feature-guide.md`
+  - `docs/context-current.md`
+  - `README.md`
+- Remaining risks/blockers:
+  - The guide is accurate to the current docs and build state, but it will drift if future feature work does not refresh it alongside the other living docs.
+
+### Validation
+- `cmake --build --preset debug -j`
+- `ctest --preset debug`
+
 ## Runtime Acceptance and Testability Slice (2026-03-07)
 
 ### Current Scope
