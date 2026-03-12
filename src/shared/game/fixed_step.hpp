@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "shared/game/game_policy.hpp"
+
 namespace shared::game {
 
 class FixedStep {
@@ -29,14 +31,14 @@ public:
 
     void SetMaxCatchupSteps(int maxCatchupSteps) { maxCatchupSteps_ = std::max(1, maxCatchupSteps); }
     void SetStepSeconds(double stepSeconds) {
-        stepSeconds_ = std::max(stepSeconds, 1e-6);
+        stepSeconds_ = std::max(stepSeconds, policy::fixed_step::kMinStepSeconds);
         accumulatorSeconds_ = std::min(accumulatorSeconds_, stepSeconds_);
     }
 
 private:
-    double stepSeconds_ = 1.0 / 30.0;
+    double stepSeconds_ = policy::fixed_step::kDefaultStepSeconds;
     double accumulatorSeconds_ = 0.0;
-    int maxCatchupSteps_ = 8;
+    int maxCatchupSteps_ = policy::fixed_step::kDefaultMaxCatchupSteps;
 };
 
 }  // namespace shared::game

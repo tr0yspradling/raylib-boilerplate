@@ -15,6 +15,8 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 - `game_client` boots through `client::app::ClientApp`, which owns a `flecs::world` and a `client::runtime::ClientRuntime`.
 - `game_server` boots through `server::app::ServerApp`, which owns a `flecs::world` and a `server::runtime::ServerRuntime`.
 - `GameClient` and `GameServer` now act as thin shells over those app roots.
+- `ClientRuntime` is now a composition root over focused client helpers rather than a monolithic owner of every phase body.
+- `ServerRuntime` is now an orchestration root over focused runtime state/context/ops helpers rather than a single monolithic implementation file.
 - Shared gameplay state under `src/shared/game/` remains plain deterministic C++ and is consumed by flecs-driven runtime systems rather than stored directly in ECS.
 
 ## Runtime Phase Model
@@ -47,6 +49,12 @@ This repository now has a dedicated-authoritative multiplayer foundation built a
 - Multiplayer transport/session orchestration now lives behind `runtime::MultiplayerSessionService`, which owns the transport implementation and mutates the client-world session resource rather than storing duplicate runtime state.
 - Singleplayer start/stop/step behavior now lives behind `runtime::SingleplayerSessionService`, which owns the local singleplayer wrapper and publishes local gameplay state through the client-world session resource.
 - Options save/apply behavior now lives behind `runtime::OptionsService`, which validates and persists config changes while the UI state remains flecs-managed.
+- Client phase orchestration is now split across focused helpers:
+  - `ClientRuntimeFlowController`
+  - `ClientUiController`
+  - `ClientUiDocumentFactory`
+  - `ClientPresentationBuilder`
+  - `ClientRuntimeContext`
 - `ClientRuntime` now exposes a window-independent world-bootstrap seam used by acceptance tests, so runtime flow can be exercised without requiring a live raylib window.
 - Non-UI status presentation is now built explicitly during `PresentationBuild`, and concrete drawing is split across dedicated render helpers.
 - Local dedicated startup now routes through `src/client/core/server_launcher.*`, which launches a sibling `game_server` process and retries localhost connect until the dedicated server is ready or startup is canceled/timed out.
@@ -82,6 +90,22 @@ Located in `src/shared/net/`:
 - `snapshot.hpp`: snapshot payload encode/decode
 - `delta.hpp`: delta codec scaffold (full snapshot passthrough today)
 - `auth.hpp`: auth interface with `DevAuthProvider` + production token scaffold
+- `net_policy.hpp`: protocol limits, disconnect/resync reason codes, dev transport defaults, and cadence policy
+
+## Policy Catalogs
+- Shared gameplay defaults and validation limits are centralized in `src/shared/game/game_policy.hpp`.
+- Shared network/protocol limits, dev transport defaults, and disconnect/resync reason codes are centralized in `src/shared/net/net_policy.hpp`.
+- Client config/runtime/UI/render/input defaults are centralized in:
+  - `src/client/core/client_config_policy.hpp`
+  - `src/client/runtime/client_runtime_policy.hpp`
+  - `src/client/ui/ui_policy.hpp`
+  - `src/client/render/render_policy.hpp`
+  - `src/client/render/render_theme.hpp`
+  - `src/client/input/input_policy.hpp`
+- Server config/runtime/session defaults are centralized in:
+  - `src/server/config/server_config_policy.hpp`
+  - `src/server/runtime/server_runtime_policy.hpp`
+- The cleanup keeps subsystem ownership local instead of creating one cross-repo constants dump.
 
 ## Implemented Vertical Slice
 - Dedicated server starts and listens.
@@ -130,6 +154,11 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - `src/client/app/`: `ClientApp` composition root and frame loop.
 - `src/client/modules/`: client flecs phase declarations and runtime module registration.
 - `src/client/runtime/`: heavyweight client runtime behavior, still transitional while state is decomposed further.
+- `src/client/runtime/client_runtime_flow.*`: runtime intent/transition handling and local dedicated startup policy.
+- `src/client/runtime/client_ui_controller.*`: focus/navigation/edit-command handling.
+- `src/client/runtime/client_ui_document_factory.*`: published UI document construction.
+- `src/client/runtime/client_presentation_builder.*`: world/status/debug presentation publication.
+- `src/client/runtime/client_runtime_context.hpp`: shared runtime dependency/context bundle for the extracted helpers.
 - `src/client/runtime/runtime_resources.hpp`: client-world flow/control/session resources and transition helpers.
 - `src/client/runtime/multiplayer_session_service.*`: extracted multiplayer transport/session service used by `ClientRuntime`.
 - `src/client/runtime/singleplayer_session_service.*`: extracted singleplayer service used by `ClientRuntime`.
@@ -148,19 +177,23 @@ Configured per-connection in `transport_gns.cpp` via `ConfigureConnectionLanes`.
 - `src/server/app/`: `ServerApp` composition root and process loop.
 - `src/server/modules/`: server flecs phase declarations and runtime module registration.
 - `src/server/runtime/`: heavyweight authoritative server runtime behavior, still transitional while services are decomposed further.
+- `src/server/runtime/server_runtime_state.hpp`: extracted authoritative session/chunk container types.
+- `src/server/runtime/server_runtime_context.hpp`: shared runtime dependency/context bundle for extracted server ops.
+- `src/server/runtime/server_runtime_ops.*`: focused transport/session/decode/replication/metrics helpers used by `ServerRuntime`.
 - `src/server/config/`: config parsing and defaults.
 
 ## Validation Coverage
 - Existing gameplay/network tests still cover serializer, send policy, fixed step, menu/join state, and runtime scene transitions.
+- Policy catalog tests now cover the extracted gameplay/network/client/server defaults directly.
 - Runtime scene-transition tests now validate the pure runtime-to-scene mapping directly.
 - New world-level tests verify flecs phase ordering for both client and server runtimes.
 - UI state/document tests now cover menu state, join-form state, and document hit-testing/focus traversal helpers.
 - Status presentation tests now cover non-UI status-screen mapping.
 - Client runtime resource tests now cover flow-resource transitions and session-resource reset semantics.
-- The extracted multiplayer service now has a focused fake-transport test covering connection events and `ClientHello` dispatch.
+- The extracted multiplayer service now has a focused fake-transport test covering connection events, `ClientHello` dispatch, and protocol-mismatch disconnect handling.
 - The extracted singleplayer service now has a focused test covering start/step/stop behavior and session-state publication.
 - The extracted options service now has a focused test covering validation, persistence, and live-safe apply behavior.
-- A new runtime acceptance test now covers the remaining menu-driven `Start Server` failure, `Singleplayer` entry, and `Options` save paths against the real `ClientRuntime` flow without opening a live window.
+- A runtime acceptance test now covers menu-driven `Start Server` failure, local-server timeout, `Singleplayer` entry, `Options` save, and UI document policy publication against the real `ClientRuntime` flow without opening a live window.
 
 ## Persistence and Security Status
 Implemented foundations:

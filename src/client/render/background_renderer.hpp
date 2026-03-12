@@ -1,19 +1,22 @@
 #pragma once
 
 #include <algorithm>
-
 #include <raylib-cpp.hpp>
+
+#include "client/render/render_policy.hpp"
+#include "client/ui/ui_policy.hpp"
 
 namespace client::render {
 
 class BackgroundRenderer {
 public:
     static void Draw(int width, int height) {
-        raylib::Color{16, 22, 28, 255}.ClearBackground();
+        ClearBackground(ui::policy::color::kBackgroundClear);
 
-        const int topBandHeight = std::max(80, height / 6);
-        DrawRectangleGradientV(0, 0, width, topBandHeight, raylib::Color{28, 44, 62, 190},
-                               raylib::Color{16, 22, 28, 0});
+        const int topBandHeight =
+            std::max(policy::background::kMinimumTopBandHeight, height / policy::background::kTopBandDivisor);
+        DrawRectangleGradientV(0, 0, width, topBandHeight, ui::policy::color::kBackgroundGradientTop,
+                               ui::policy::color::kBackgroundGradientBottom);
     }
 };
 

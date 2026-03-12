@@ -96,10 +96,13 @@ Direct auto-join (dev shortcut):
 - Both `game_client` and `game_server` now bootstrap through `flecs::world` composition roots.
 - Client runtime phase order is validated by `test_sim_client_pipeline`.
 - Server runtime phase order is validated by `test_sim_server_pipeline`.
+- Named runtime/config/protocol/default-value catalogs are now centralized in subsystem-owned policy headers under `src/shared/`, `src/client/`, and `src/server/`; build/run commands are unchanged.
 - Menu/join UI state now lives in flecs-managed resources and is rendered from a built `UiDocument`.
 - Client flow/status/debug/local-start control now also lives in flecs-managed resources on the client world.
 - Active client scene publication is now a pure runtime-to-scene mapping instead of a mutable scene-manager bridge.
 - Multiplayer client session state also lives in flecs-managed resources, while transport/bootstrap/polling/message handling now route through `runtime::MultiplayerSessionService`.
+- `ClientRuntime` now delegates runtime flow, UI interaction, UI document construction, and presentation publication to focused helpers while preserving the existing flecs phase order.
+- `ServerRuntime` now delegates transport/message/session/replication/metrics work to focused runtime ops while preserving the existing flecs phase order.
 - Singleplayer start/stop/step now routes through `runtime::SingleplayerSessionService` while still publishing gameplay state through the shared client session resource.
 - Options save/apply now routes through `runtime::OptionsService` while the options screen state remains flecs-managed.
 - Splash, centered status, and gameplay world rendering now live in dedicated render helpers; debug overlay remains separate.
@@ -150,8 +153,10 @@ If you are validating the `Options` flow specifically, also confirm:
 
 Automated acceptance already covers:
 1. `Start Server` launch failure returning to the menu with actionable status text.
-2. `Singleplayer` entry publishing local gameplay state.
-3. `Options` save persisting config and refreshing join defaults.
+2. Local dedicated startup timeout returning cleanly to the menu.
+3. `Singleplayer` entry publishing local gameplay state.
+4. `Options` save persisting config and refreshing join defaults.
+5. UI documents publishing the expected menu/options titles, footer copy, and layout widths from the new policy catalogs.
 
 If you are validating the Phase 4 flecs foundation specifically, also confirm:
 1. `game_server` starts and accepts connections with no runtime regressions.

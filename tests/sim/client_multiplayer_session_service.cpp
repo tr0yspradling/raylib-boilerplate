@@ -170,5 +170,33 @@ int main() {
     assert(flow.statusMessage == "Join failed: timeout");
     assert(flow.disconnectReason.empty());
 
+    flow.statusMessage.clear();
+    flow.disconnectReason.clear();
+    flow.runtime.disconnectReason.clear();
+    flow.runtime.mode = core::RuntimeMode::JoiningServer;
+    session.serverConnection = 91;
+    session.connected = true;
+    transportPtr->closedConnections.clear();
+    transportPtr->lastCloseReasonCode = 0;
+    transportPtr->lastCloseReason.clear();
+
+    std::vector<uint8_t> protocolMismatchPacket = net::BuildPacket(net::MessageId::Pong, {});
+    protocolMismatchPacket[4] = 0;
+    protocolMismatchPacket[5] = 0;
+    transportPtr->receivedPackets.push_back({
+        .connection = session.serverConnection,
+        .bytes = std::move(protocolMismatchPacket),
+    });
+
+    service.Poll(flow, localServer, session);
+
+    assert(!session.connected);
+    assert(session.serverConnection == net::kInvalidConnectionHandle);
+    assert(transportPtr->closedConnections.size() == 1);
+    assert(transportPtr->lastCloseReasonCode ==
+        net::policy::ToInt(net::policy::DisconnectCode::ClientProtocolVersionMismatch));
+    assert(transportPtr->lastCloseReason == "protocol version mismatch");
+    assert(flow.disconnectReason == "protocol version mismatch");
+
     return 0;
 }

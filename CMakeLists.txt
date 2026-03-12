@@ -185,6 +185,7 @@ target_include_directories(shared_game INTERFACE ${CMAKE_SOURCE_DIR}/src)
 
 if(BUILD_GAME_CLIENT OR BUILD_GAME_SERVER)
     add_library(shared_net STATIC
+        src/shared/net/net_policy.hpp
         src/shared/net/transport_gns.cpp
         src/shared/net/transport.hpp
         src/shared/net/transport_gns.hpp
@@ -212,6 +213,7 @@ if(BUILD_GAME_CLIENT)
         src/client/game_client.hpp
         src/client/components/components.hpp
         src/client/core/application.hpp
+        src/client/core/client_config_policy.hpp
         src/client/core/config.hpp
         src/client/core/config.cpp
         src/client/modules/client_phases.hpp
@@ -225,15 +227,28 @@ if(BUILD_GAME_CLIENT)
         src/client/core/singleplayer_runtime.cpp
         src/client/core/scene.hpp
         src/client/core/scene_manager.hpp
+        src/client/input/input_policy.hpp
         src/client/input/input_manager.hpp
         src/client/physics/movement_system.hpp
         src/client/render/background_renderer.hpp
+        src/client/render/render_policy.hpp
+        src/client/render/render_theme.hpp
         src/client/render/splash_renderer.hpp
         src/client/render/status_presenter.hpp
         src/client/render/status_renderer.hpp
         src/client/render/world_renderer.hpp
         src/client/runtime/client_runtime.cpp
         src/client/runtime/client_runtime.hpp
+        src/client/runtime/client_runtime_context.hpp
+        src/client/runtime/client_runtime_flow.hpp
+        src/client/runtime/client_runtime_flow.cpp
+        src/client/runtime/client_ui_controller.hpp
+        src/client/runtime/client_ui_controller.cpp
+        src/client/runtime/client_ui_document_factory.hpp
+        src/client/runtime/client_ui_document_factory.cpp
+        src/client/runtime/client_presentation_builder.hpp
+        src/client/runtime/client_presentation_builder.cpp
+        src/client/runtime/client_runtime_policy.hpp
         src/client/runtime/multiplayer_session_service.cpp
         src/client/runtime/multiplayer_session_service.hpp
         src/client/runtime/options_service.cpp
@@ -246,6 +261,7 @@ if(BUILD_GAME_CLIENT)
         src/client/systems/render_system.hpp
         src/client/ui/debug_overlay.hpp
         src/client/ui/ui_document.hpp
+        src/client/ui/ui_policy.hpp
         src/client/ui/ui_renderer.hpp
         src/client/ui/ui_state.hpp
     )
@@ -276,9 +292,15 @@ if(BUILD_GAME_SERVER)
         src/server/app/server_app.hpp
         src/server/game_server.cpp
         src/server/game_server.hpp
+        src/server/config/server_config_policy.hpp
         src/server/modules/server_phases.hpp
         src/server/modules/server_runtime_module.hpp
         src/server/runtime/server_runtime.cpp
+        src/server/runtime/server_runtime_context.hpp
+        src/server/runtime/server_runtime_ops.cpp
+        src/server/runtime/server_runtime_ops.hpp
+        src/server/runtime/server_runtime_policy.hpp
+        src/server/runtime/server_runtime_state.hpp
         src/server/runtime/server_runtime.hpp
         src/server/world_persistence.cpp
         src/server/world_persistence.hpp

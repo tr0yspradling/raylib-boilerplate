@@ -6,6 +6,10 @@ add_executable(test_net_send_policy net/send_policy.cpp)
 target_include_directories(test_net_send_policy PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_net_send_policy PRIVATE shared_game shared_net)
 
+add_executable(test_net_policy_catalogs net/policy_catalogs.cpp)
+target_include_directories(test_net_policy_catalogs PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_net_policy_catalogs PRIVATE shared_game shared_net)
+
 add_executable(test_sim_fixed_step sim/fixed_step_sim.cpp)
 target_include_directories(test_sim_fixed_step PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_fixed_step PRIVATE shared_game)
@@ -99,6 +103,10 @@ add_executable(test_sim_client_runtime_flow_resources sim/client_runtime_flow_re
 target_include_directories(test_sim_client_runtime_flow_resources PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_client_runtime_flow_resources PRIVATE shared_game)
 
+add_executable(test_sim_policy_catalogs sim/policy_catalogs.cpp)
+target_include_directories(test_sim_policy_catalogs PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(test_sim_policy_catalogs PRIVATE shared_game)
+
 add_executable(test_sim_client_session_resources sim/client_session_resources.cpp)
 target_include_directories(test_sim_client_session_resources PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(test_sim_client_session_resources PRIVATE shared_game)
@@ -118,6 +126,7 @@ endif()
 
 add_test(NAME test_net_serializer_roundtrip COMMAND test_net_serializer_roundtrip)
 add_test(NAME test_net_send_policy COMMAND test_net_send_policy)
+add_test(NAME test_net_policy_catalogs COMMAND test_net_policy_catalogs)
 add_test(NAME test_sim_fixed_step COMMAND test_sim_fixed_step)
 add_test(NAME test_sim_input_validation COMMAND test_sim_input_validation)
 add_test(NAME test_sim_interpolation_buffer COMMAND test_sim_interpolation_buffer)
@@ -137,6 +146,7 @@ add_test(NAME test_sim_singleplayer_runtime COMMAND test_sim_singleplayer_runtim
 add_test(NAME test_sim_singleplayer_session_service COMMAND test_sim_singleplayer_session_service)
 add_test(NAME test_sim_options_service COMMAND test_sim_options_service)
 add_test(NAME test_sim_client_runtime_flow_resources COMMAND test_sim_client_runtime_flow_resources)
+add_test(NAME test_sim_policy_catalogs COMMAND test_sim_policy_catalogs)
 add_test(NAME test_sim_client_session_resources COMMAND test_sim_client_session_resources)
 add_test(NAME test_sim_client_multiplayer_session_service COMMAND test_sim_client_multiplayer_session_service)
 if(TARGET test_sim_client_runtime_acceptance)

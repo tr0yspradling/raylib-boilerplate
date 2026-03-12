@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <string>
 
+#include "shared/game/game_policy.hpp"
 #include "shared/game/ids.hpp"
 #include "shared/game/math_types.hpp"
 
@@ -22,13 +23,13 @@ struct PlayerInputFrame {
 };
 
 struct PlayerKinematicsConfig {
-    float maxMoveSpeed = 8.0f;
-    float jumpSpeed = 8.0f;
-    float gravity = -24.0f;
-    float maxFallSpeed = -48.0f;
-    float groundY = 0.0f;
-    float minX = -256.0f;
-    float maxX = 256.0f;
+    float maxMoveSpeed = policy::player::kDefaultMaxMoveSpeed;
+    float jumpSpeed = policy::player::kDefaultJumpSpeed;
+    float gravity = policy::player::kDefaultGravity;
+    float maxFallSpeed = policy::player::kDefaultMaxFallSpeed;
+    float groundY = policy::player::kDefaultGroundY;
+    float minX = policy::player::kDefaultMinX;
+    float maxX = policy::player::kDefaultMaxX;
 };
 
 struct PlayerState {
@@ -45,7 +46,8 @@ struct PlayerState {
 
 inline void SimulatePlayerStep(PlayerState& player, const PlayerInputFrame& input, float dt,
                                const PlayerKinematicsConfig& config) {
-    const float clampedMove = std::clamp(input.moveX, -1.0f, 1.0f);
+    const float clampedMove =
+        std::clamp(input.moveX, policy::kMinNormalizedMoveAxis, policy::kMaxNormalizedMoveAxis);
     player.velocity.x = clampedMove * config.maxMoveSpeed;
 
     if (input.jumpPressed && player.onGround) {

@@ -8,6 +8,8 @@
 #include "client/core/config.hpp"
 #include "client/core/server_launcher.hpp"
 #include "client/runtime/client_runtime.hpp"
+#include "client/runtime/client_runtime_policy.hpp"
+#include "client/ui/ui_policy.hpp"
 
 namespace client::runtime {
 
@@ -112,6 +114,64 @@ void TestStartServerLaunchFailureReturnsToMenu() {
     assert(!localServer.ownsProcess);
 }
 
+void TestMenuAndOptionsDocumentsUsePolicyCatalogs() {
+    flecs::world world;
+    ClientRuntime runtime = MakeRuntime();
+    BootToMenu(runtime, world);
+
+    const client::ui::UiDocument& menuDocument = world.get<client::ui::UiDocument>();
+    assert(menuDocument.title == std::string{client::ui::policy::copy::kMenuTitle});
+    assert(menuDocument.subtitle == std::string{client::ui::policy::copy::kMenuSubtitle});
+    assert(menuDocument.footerHint == std::string{client::ui::policy::copy::kMenuFooterHint});
+    assert(!menuDocument.widgets.empty());
+    assert(menuDocument.widgets.front().id == client::ui::UiWidgetId::MenuStartServer);
+    assert(menuDocument.widgets.front().bounds.width == client::ui::policy::layout::kMenuWidth);
+    assert(menuDocument.widgets.front().bounds.height == client::ui::policy::layout::kRowHeight);
+
+    client::ui::MenuScreenState& menu = world.get_mut<client::ui::MenuScreenState>();
+    menu.SetSelectedIndex(3);
+    world.get_mut<client::ui::UiInteractionState>().focusedWidget = client::ui::UiWidgetId::MenuOptions;
+    world.set<client::ui::UiInputState>({.acceptPressed = true});
+
+    runtime.HandleUiInteraction(world);
+    runtime.ProcessRuntimeIntent(world);
+    runtime.BuildUiState(world);
+
+    const client::ui::UiDocument& optionsDocument = world.get<client::ui::UiDocument>();
+    assert(optionsDocument.title == std::string{client::ui::policy::copy::kOptionsTitle});
+    assert(optionsDocument.subtitle == std::string{client::ui::policy::copy::kOptionsSubtitle});
+    assert(optionsDocument.footerHint == std::string{client::ui::policy::copy::kFormFooterHint});
+    assert(!optionsDocument.widgets.empty());
+    assert(optionsDocument.widgets.front().id == client::ui::UiWidgetId::OptionsPlayerName);
+    assert(optionsDocument.widgets.front().bounds.width == client::ui::policy::layout::kOptionsWidth);
+    assert(optionsDocument.widgets.front().bounds.height == client::ui::policy::layout::kRowHeight);
+}
+
+void TestLocalServerStartupTimeoutReturnsToMenu() {
+    flecs::world world;
+    ClientRuntime runtime = MakeRuntime();
+    BootToMenu(runtime, world);
+
+    auto& flow = world.get_mut<client::runtime::ClientFlowState>();
+    auto& localServer = world.get_mut<client::runtime::LocalServerStartupState>();
+
+    flow.runtime.mode = client::core::RuntimeMode::StartingLocalServer;
+    flow.runtime.requestedLocalServerStart = false;
+    flow.statusMessage = std::string{client::runtime::policy::kLocalServerWaitingStatus};
+    localServer.startupInProgress = true;
+    localServer.launchStartedAt =
+        std::chrono::steady_clock::now() - client::runtime::policy::kLocalServerStartupTimeout -
+        std::chrono::milliseconds{1};
+
+    runtime.ProcessRuntimeIntent(world);
+
+    assert(flow.runtime.mode == client::core::RuntimeMode::Menu);
+    assert(flow.statusMessage == std::string{client::runtime::policy::kLocalServerTimeoutStatus});
+    assert(!localServer.startupInProgress);
+    assert(world.get<client::ui::ScreenState>().activeScene == client::core::SceneKind::MainMenu);
+    assert(world.get<client::ui::UiInteractionState>().focusedWidget == client::ui::UiWidgetId::MenuStartServer);
+}
+
 void TestSingleplayerPublishesGameplayState() {
     flecs::world world;
     ClientRuntime runtime = MakeRuntime();
@@ -206,6 +266,8 @@ void TestOptionsSavePersistsAndRefreshesJoinDefaults() {
 
 int main() {
     TestStartServerLaunchFailureReturnsToMenu();
+    TestMenuAndOptionsDocumentsUsePolicyCatalogs();
+    TestLocalServerStartupTimeoutReturnsToMenu();
     TestSingleplayerPublishesGameplayState();
     TestOptionsSavePersistsAndRefreshesJoinDefaults();
     return 0;

@@ -6,6 +6,7 @@
 #include <raylib-cpp.hpp>
 
 #include "client/ui/ui_document.hpp"
+#include "client/ui/ui_policy.hpp"
 
 namespace client::ui {
 
@@ -13,10 +14,13 @@ class UiRenderer {
 public:
     static void Draw(const UiDocument& document, int width, int height) {
         if (!document.title.empty()) {
-            raylib::Color{238, 246, 255, 255}.DrawText(document.title.c_str(), width / 2 - 140, 112, 56);
+            policy::color::kTitleText.DrawText(document.title.c_str(), width / 2 - policy::layout::kTitleCenterOffset,
+                                               policy::layout::kTitleY, policy::typography::kTitleFontSize);
         }
         if (!document.subtitle.empty()) {
-            raylib::Color{168, 194, 214, 255}.DrawText(document.subtitle.c_str(), width / 2 - 220, 176, 24);
+            policy::color::kSubtitleText.DrawText(document.subtitle.c_str(),
+                                                  width / 2 - policy::layout::kSubtitleCenterOffset,
+                                                  policy::layout::kSubtitleY, policy::typography::kSubtitleFontSize);
         }
 
         for (const UiWidget& widget : document.widgets) {
@@ -25,32 +29,39 @@ public:
 
         if (!document.statusMessage.empty()) {
             const int statusY = ComputeStatusY(document, height);
-            raylib::Color{255, 209, 140, 255}.DrawText(document.statusMessage.c_str(), width / 2 - 300, statusY, 20);
+            policy::color::kStatusText.DrawText(document.statusMessage.c_str(),
+                                                width / 2 - policy::layout::kStatusCenterOffset, statusY,
+                                                policy::typography::kStatusFontSize);
         }
 
         if (!document.footerHint.empty()) {
-            raylib::Color{168, 196, 214, 255}.DrawText(document.footerHint.c_str(), width / 2 - 340, height - 62, 20);
+            policy::color::kFooterText.DrawText(document.footerHint.c_str(),
+                                                width / 2 - policy::layout::kFooterCenterOffset,
+                                                height - policy::layout::kFooterBottomMargin,
+                                                policy::typography::kFooterFontSize);
         }
     }
 
 private:
     [[nodiscard]] static int ComputeStatusY(const UiDocument& document, int height) {
-        float maxBottom = 520.0f;
+        float maxBottom = policy::layout::kMinimumStatusBaseline;
         for (const UiWidget& widget : document.widgets) {
             maxBottom = std::max(maxBottom, widget.bounds.y + widget.bounds.height);
         }
-        return std::min(static_cast<int>(maxBottom + 20.0f), height - 96);
+        return std::min(static_cast<int>(maxBottom + policy::layout::kStatusPadding),
+                        height - policy::layout::kStatusBottomMargin);
     }
 
     static void DrawWidget(const UiWidget& widget) {
         const raylib::Color panelColor = WidgetPanelColor(widget.state);
         const raylib::Color textColor = WidgetTextColor(widget.state);
-        DrawRectangleRounded({widget.bounds.x, widget.bounds.y, widget.bounds.width, widget.bounds.height}, 0.22f, 12,
-                             panelColor);
+        DrawRectangleRounded({widget.bounds.x, widget.bounds.y, widget.bounds.width, widget.bounds.height},
+                             policy::layout::kWidgetCornerRoundness, policy::layout::kWidgetCornerSegments, panelColor);
 
         std::string text;
         if (widget.kind == UiWidgetKind::TextField) {
-            const std::string value = widget.value.empty() ? std::string{"<required>"} : widget.value;
+            const std::string value =
+                widget.value.empty() ? std::string{policy::copy::kRequiredFieldPlaceholder} : widget.value;
             text = widget.label + ": " + value;
             if (widget.state.editing) {
                 text += "_";
@@ -59,33 +70,35 @@ private:
             text = widget.label;
         }
 
-        textColor.DrawText(text.c_str(), static_cast<int>(widget.bounds.x) + 30, static_cast<int>(widget.bounds.y) + 6, 28);
+        textColor.DrawText(text.c_str(), static_cast<int>(widget.bounds.x) + policy::layout::kWidgetTextXPadding,
+                           static_cast<int>(widget.bounds.y) + policy::layout::kWidgetTextYPadding,
+                           policy::typography::kBodyFontSize);
     }
 
     [[nodiscard]] static raylib::Color WidgetPanelColor(const UiWidgetState& state) {
         if (state.editing) {
-            return raylib::Color{255, 206, 112, 255};
+            return policy::color::kWidgetEditingPanel;
         }
         if (state.pressed) {
-            return raylib::Color{86, 172, 230, 255};
+            return policy::color::kWidgetPressedPanel;
         }
         if (state.focused) {
-            return raylib::Color{118, 198, 255, 255};
+            return policy::color::kWidgetFocusedPanel;
         }
         if (state.hovered) {
-            return raylib::Color{70, 98, 124, 255};
+            return policy::color::kWidgetHoveredPanel;
         }
         if (state.disabled) {
-            return raylib::Color{34, 42, 50, 255};
+            return policy::color::kWidgetDisabledPanel;
         }
-        return raylib::Color{46, 62, 78, 255};
+        return policy::color::kWidgetDefaultPanel;
     }
 
     [[nodiscard]] static raylib::Color WidgetTextColor(const UiWidgetState& state) {
         if (state.focused || state.editing || state.pressed) {
-            return raylib::Color{32, 52, 72, 255};
+            return policy::color::kWidgetActiveText;
         }
-        return raylib::Color{214, 228, 240, 255};
+        return policy::color::kWidgetDefaultText;
     }
 };
 

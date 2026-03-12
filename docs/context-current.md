@@ -1,11 +1,14 @@
 # Context Current
 
-Last updated: 2026-03-08
+Last updated: 2026-03-12
 
 ## Current Focus
-- Runtime reshape program completed through the Phase 14 acceptance/testability slice.
-- Added a new-project feature inventory guide under `docs/project-feature-guide.md` so implemented, partial, and planned features are documented in one place.
-- Remaining validation work is now limited to an operator-run hands-on GUI smoke pass if release-style input validation is required.
+- Runtime reshape remains complete through the Phase 14 acceptance/testability slice.
+- ECS cleanup and constant-catalog refactor is now the active program.
+- The approved cleanup slice is now implemented on the active runtime path:
+  - subsystem-owned policy catalogs are in place for shared gameplay/networking and client/server runtime concerns
+  - `ClientRuntime` and `ServerRuntime` have been reduced to thinner orchestration roots with focused helper layers
+  - raw disconnect/resync literals on the active path have been replaced with named shared values
 
 ## Recent Completed Work
 - Consolidated duplicate client runtime outputs to a single executable: `game_client`.
@@ -110,27 +113,63 @@ Last updated: 2026-03-08
   - grouped repo capabilities into implemented, partial/scaffolded, and planned follow-on work
   - linked the guide from `README.md` for easier discovery
 - Fixed CMake vendored dependency gating so `argparse` is only required for client/testing builds.
+- Began the ECS cleanup program:
+  - added `docs/ecs-cleanup-plan.md`
+  - added `docs/ecs-cleanup-phase1-plan.md`
+  - switched living context tracking to the cleanup program
+- Completed the ECS cleanup and constant-catalog refactor slice:
+  - added subsystem-owned policy catalogs:
+    - `src/shared/game/game_policy.hpp`
+    - `src/shared/net/net_policy.hpp`
+    - `src/client/core/client_config_policy.hpp`
+    - `src/client/runtime/client_runtime_policy.hpp`
+    - `src/client/ui/ui_policy.hpp`
+    - `src/client/render/render_policy.hpp`
+    - `src/client/render/render_theme.hpp`
+    - `src/client/input/input_policy.hpp`
+    - `src/server/config/server_config_policy.hpp`
+    - `src/server/runtime/server_runtime_policy.hpp`
+  - reduced `ClientRuntime` to a thinner composition root by extracting:
+    - `ClientRuntimeFlowController`
+    - `ClientUiController`
+    - `ClientUiDocumentFactory`
+    - `ClientPresentationBuilder`
+    - `ClientRuntimeContext`
+  - reduced `ServerRuntime` to a thinner orchestration root by extracting:
+    - `ServerRuntimeState`
+    - `ServerRuntimeContext`
+    - `ServerRuntimeOps`
+  - aligned shared gameplay/network defaults and client/server config/runtime defaults with the new policy catalogs
+  - replaced active-path disconnect/resync literals with named shared reason codes
+  - expanded tests with:
+    - policy catalog coverage
+    - runtime acceptance coverage for UI document policy usage and local-server timeout handling
+    - multiplayer session coverage for client protocol-mismatch disconnect handling
 
 ## Validation Status
 - Configure: `cmake --preset debug` passing (`build/debug` generated).
 - Build: `cmake --build --preset debug -j` passing.
-- Tests: `ctest --preset debug` passing (`24/24`).
+- Tests: `ctest --preset debug` passing (`26/26`).
 - Runtime sanity: `./build/debug/game_server --port 27021 --tick-rate 30 --snapshot-rate 15` starts successfully.
 - Client startup sanity: `./build/debug/game_client --host 127.0.0.1 --port 27021 --auto-join --skip-splash` starts successfully alongside the dedicated server.
 - Client startup sanity: `./build/debug/game_client --skip-splash` starts successfully for the local gameplay path.
-- Client startup sanity: `timeout 2 ./build/debug/game_client --skip-splash` reaches a live window and frame loop under the new session-resource path.
-- Automated acceptance: `test_sim_client_runtime_acceptance` covers the remaining menu-driven `Start Server`, `Singleplayer`, and `Options` flows at the runtime/UI-command level.
+- Client startup sanity: `timeout 2 ./build/debug/game_client --skip-splash` reaches a live window and frame loop under the cleanup refactor path.
+- Automated acceptance: `test_sim_client_runtime_acceptance` covers the remaining menu-driven `Start Server`, `Singleplayer`, `Options`, UI document policy, and local-server timeout flows at the runtime/UI-command level.
 - Manual GUI smoke: partially attempted with desktop automation.
   - Confirmed the real main-menu window renders correctly via a window-targeted screenshot.
   - Confirmed a real gameplay window renders correctly via `game_server` + `game_client --auto-join --skip-splash` on isolated port `27041`.
   - Could not complete interactive validation for `Start Server`, `Singleplayer`, or `Options` because the current macOS session denied `System Events` assistive access and low-level posted key/mouse events did not move the raylib UI state.
 
 ## Open Risks / Gaps
+- The cleanup program is intentionally behavior-preserving, so regression risk is concentrated in client/server orchestration boundaries rather than feature scope.
+- The heaviest remaining refinement hotspots are `src/client/runtime/multiplayer_session_service.cpp`, `src/server/runtime/server_runtime_ops.cpp`, `src/client/ui/ui_state.hpp`, and `src/client/ui/ui_renderer.hpp`.
 - A true operator-driven GUI pass for `Start Server`, `Singleplayer`, and `Options` is still pending if release-style visual/input validation is required.
 - The current macOS session cannot complete that interactive pass non-interactively because assistive access is denied and synthetic low-level input did not affect the raylib window.
 - Developers using legacy non-preset IDE profiles can still generate `cmake-build-*` folders unless they switch to preset-backed profiles.
 
 ## Active Plan Docs
+- `docs/ecs-cleanup-plan.md`
+- `docs/ecs-cleanup-phase1-plan.md`
 - `docs/runtime-reshape-plan.md`
 - `docs/runtime-phase1-plan.md`
 - `docs/runtime-phase2-plan.md`
@@ -147,5 +186,5 @@ Last updated: 2026-03-08
 - `docs/runtime-phase14-plan.md`
 
 ## Next Recommended Step
-- If desired, run a brief operator-driven GUI acceptance pass for `Start Server`, `Singleplayer`, and `Options` from a macOS session with Accessibility/Input Monitoring enabled for the automation tool or by manual keyboard/mouse interaction.
-- Otherwise, use `docs/project-feature-guide.md` to choose the next scope from the documented planned feature areas rather than leftover runtime-reshape cleanup.
+- Commit and push the completed cleanup slice.
+- If a deeper follow-on cleanup is desired later, continue by splitting `MultiplayerSessionService` and `ServerRuntimeOps` into smaller packet/session/replication helpers.

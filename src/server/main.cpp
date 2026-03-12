@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 
+#include "server/config/server_config_policy.hpp"
 #include "server/game_server.hpp"
 
 namespace {
@@ -12,7 +13,7 @@ struct ParsedServerArgs {
 };
 
 [[nodiscard]] ParsedServerArgs ParseArgs(int argc, char** argv) {
-    std::string configPath = "src/server/config/server.cfg";
+    std::string configPath = std::string{server::config::policy::kDefaultConfigPath};
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--config" && i + 1 < argc) {
@@ -51,7 +52,7 @@ int main(int argc, char** argv) {
     try {
         ParsedServerArgs parsed = ParseArgs(argc, argv);
         if (parsed.showHelp) {
-            std::cout << "Usage: game_server [--config PATH] [--port PORT] [--tick-rate HZ] [--snapshot-rate HZ]\n";
+            std::cout << server::config::policy::kUsageText << '\n';
             return 0;
         }
 

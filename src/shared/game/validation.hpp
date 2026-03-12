@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "shared/game/entity.hpp"
+#include "shared/game/game_policy.hpp"
 
 namespace shared::game {
 
@@ -25,8 +26,8 @@ enum class PlayerKinematicsValidationError : uint8_t {
 };
 
 struct PlayerInputValidationConfig {
-    float maxAbsMoveAxis = 1.01f;
-    uint32_t maxSequenceBacktrack = 2048;
+    float maxAbsMoveAxis = policy::validation::kDefaultMaxAbsMoveAxis;
+    uint32_t maxSequenceBacktrack = policy::validation::kDefaultMaxSequenceBacktrack;
 };
 
 [[nodiscard]] inline PlayerInputValidationError ValidatePlayerInputFrame(const PlayerInputFrame& input,

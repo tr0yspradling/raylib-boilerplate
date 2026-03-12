@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <deque>
 
+#include "shared/game/game_policy.hpp"
 #include "shared/game/ids.hpp"
 #include "shared/game/math_types.hpp"
 
@@ -16,7 +17,8 @@ struct PositionSample {
 
 class PositionInterpolationBuffer {
 public:
-    explicit PositionInterpolationBuffer(size_t maxSamples = 32) : maxSamples_(std::max<size_t>(2, maxSamples)) {}
+    explicit PositionInterpolationBuffer(size_t maxSamples = policy::interpolation::kDefaultMaxSamples) :
+        maxSamples_(std::max(policy::interpolation::kMinSamples, maxSamples)) {}
 
     void Push(PositionSample sample) {
         if (samples_.empty()) {
@@ -70,7 +72,7 @@ public:
     [[nodiscard]] size_t Size() const { return samples_.size(); }
 
 private:
-    size_t maxSamples_ = 32;
+    size_t maxSamples_ = policy::interpolation::kDefaultMaxSamples;
     std::deque<PositionSample> samples_;
 };
 

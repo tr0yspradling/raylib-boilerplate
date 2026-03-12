@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include "shared/game/chunk.hpp"
+#include "shared/game/game_policy.hpp"
 #include "shared/game/world.hpp"
 
 namespace shared::game {
@@ -20,8 +21,10 @@ namespace shared::game {
 }
 
 [[nodiscard]] inline ChunkData BuildProceduralChunk(const WorldConfig& worldConfig, const ChunkCoord& coord) {
-    const int width = std::clamp(worldConfig.chunkWidthTiles, 1, 255);
-    const int height = std::clamp(worldConfig.chunkHeightTiles, 1, 255);
+    const int width = std::clamp(worldConfig.chunkWidthTiles, policy::world::kMinChunkDimensionTiles,
+                                 policy::world::kMaxChunkDimensionTiles);
+    const int height = std::clamp(worldConfig.chunkHeightTiles, policy::world::kMinChunkDimensionTiles,
+                                  policy::world::kMaxChunkDimensionTiles);
 
     ChunkData chunk;
     chunk.coord = coord;

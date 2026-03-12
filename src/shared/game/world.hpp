@@ -5,16 +5,17 @@
 #include <vector>
 
 #include "shared/game/chunk.hpp"
+#include "shared/game/game_policy.hpp"
 #include "shared/game/ids.hpp"
 #include "shared/game/math_types.hpp"
 
 namespace shared::game {
 
 struct WorldConfig {
-    int chunkWidthTiles = 64;
-    int chunkHeightTiles = 64;
-    int tileSize = 1;
-    int interestRadiusChunks = 4;
+    int chunkWidthTiles = policy::world::kDefaultChunkWidthTiles;
+    int chunkHeightTiles = policy::world::kDefaultChunkHeightTiles;
+    int tileSize = policy::world::kDefaultTileSize;
+    int interestRadiusChunks = policy::world::kDefaultInterestRadiusChunks;
 };
 
 struct ChunkSubscription {

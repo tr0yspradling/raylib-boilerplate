@@ -5,6 +5,7 @@
 
 #include <raylib-cpp.hpp>
 
+#include "client/input/input_policy.hpp"
 #include "client/ui/ui_state.hpp"
 #include "shared/game/entity.hpp"
 #include "shared/game/validation.hpp"
@@ -18,14 +19,14 @@ public:
     void Update() {
         moveAxisX_ = 0.0f;
         textInput_.clear();
-        if (raylib::Keyboard::IsKeyDown(KEY_A) || raylib::Keyboard::IsKeyDown(KEY_LEFT)) {
+        if (policy::IsMoveLeftDown()) {
             moveAxisX_ -= 1.0f;
         }
-        if (raylib::Keyboard::IsKeyDown(KEY_D) || raylib::Keyboard::IsKeyDown(KEY_RIGHT)) {
+        if (policy::IsMoveRightDown()) {
             moveAxisX_ += 1.0f;
         }
 
-        for (int gamepad = 0; gamepad < 4; ++gamepad) {
+        for (int gamepad = 0; gamepad < policy::kMaxSupportedGamepads; ++gamepad) {
             if (!::IsGamepadAvailable(gamepad)) {
                 continue;
             }
@@ -38,20 +39,19 @@ public:
             }
         }
 
-        moveAxisX_ = std::clamp(moveAxisX_, -1.0f, 1.0f);
+        moveAxisX_ = policy::ClampMoveAxis(moveAxisX_);
         const Vector2 mousePosition = ::GetMousePosition();
         mouseMoved_ = mousePosition_.x != mousePosition.x || mousePosition_.y != mousePosition.y;
         mousePosition_ = mousePosition;
         mousePrimaryPressed_ = ::IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 
-        jumpPressed_ = raylib::Keyboard::IsKeyPressed(KEY_SPACE) || raylib::Keyboard::IsKeyPressed(KEY_W) ||
-            raylib::Keyboard::IsKeyPressed(KEY_UP);
-        menuUpPressed_ = raylib::Keyboard::IsKeyPressed(KEY_UP) || raylib::Keyboard::IsKeyPressed(KEY_W);
-        menuDownPressed_ = raylib::Keyboard::IsKeyPressed(KEY_DOWN) || raylib::Keyboard::IsKeyPressed(KEY_S);
-        menuSelectPressed_ = raylib::Keyboard::IsKeyPressed(KEY_ENTER) || raylib::Keyboard::IsKeyPressed(KEY_SPACE);
-        menuBackPressed_ = raylib::Keyboard::IsKeyPressed(KEY_ESCAPE);
+        jumpPressed_ = policy::IsJumpPressed();
+        menuUpPressed_ = policy::IsMenuUpPressed();
+        menuDownPressed_ = policy::IsMenuDownPressed();
+        menuSelectPressed_ = policy::IsMenuSelectPressed();
+        menuBackPressed_ = policy::IsMenuBackPressed();
 
-        for (int gamepad = 0; gamepad < 4; ++gamepad) {
+        for (int gamepad = 0; gamepad < policy::kMaxSupportedGamepads; ++gamepad) {
             if (!::IsGamepadAvailable(gamepad)) {
                 continue;
             }
@@ -76,7 +76,7 @@ public:
 
         int codepoint = ::GetCharPressed();
         while (codepoint > 0) {
-            if (codepoint >= 32 && codepoint <= 126) {
+            if (codepoint >= policy::kPrintableAsciiMin && codepoint <= policy::kPrintableAsciiMax) {
                 textInput_.push_back(static_cast<char>(codepoint));
             }
             codepoint = ::GetCharPressed();
@@ -94,7 +94,7 @@ public:
         const uint32_t previousSequence = sequence > 0 ? sequence - 1U : 0U;
         const game::PlayerInputValidationError validation = game::ValidatePlayerInputFrame(frame, previousSequence);
         if (validation != game::PlayerInputValidationError::None) {
-            frame.moveX = std::clamp(frame.moveX, -1.0f, 1.0f);
+            frame.moveX = policy::ClampMoveAxis(frame.moveX);
             frame.jumpPressed = false;
         }
 

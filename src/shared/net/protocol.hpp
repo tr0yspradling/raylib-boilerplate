@@ -7,15 +7,14 @@
 
 #include "shared/game/chunk.hpp"
 #include "shared/game/entity.hpp"
+#include "shared/game/game_policy.hpp"
 #include "shared/game/ids.hpp"
 #include "shared/net/message_ids.hpp"
+#include "shared/net/net_policy.hpp"
 #include "shared/net/serializer.hpp"
 #include "shared/net/snapshot.hpp"
 
 namespace shared::net {
-
-constexpr uint32_t kProtocolMagic = 0x52424e54;  // RBNT
-constexpr uint16_t kProtocolVersion = 2;
 
 struct EnvelopeHeader {
     uint32_t magic = kProtocolMagic;
@@ -79,10 +78,10 @@ struct ChunkDeltaMessage {
 };
 
 struct WorldMetadataMessage {
-    uint16_t chunkWidthTiles = 64;
-    uint16_t chunkHeightTiles = 64;
-    uint16_t tileSize = 1;
-    uint16_t defaultInterestRadiusChunks = 4;
+    uint16_t chunkWidthTiles = shared::game::policy::world::kDefaultChunkWidthTiles;
+    uint16_t chunkHeightTiles = shared::game::policy::world::kDefaultChunkHeightTiles;
+    uint16_t tileSize = shared::game::policy::world::kDefaultTileSize;
+    uint16_t defaultInterestRadiusChunks = shared::game::policy::world::kDefaultInterestRadiusChunks;
 };
 
 struct ChunkUnsubscribeMessage {
@@ -161,7 +160,8 @@ inline std::vector<uint8_t> Serialize(const ClientHelloMessage& message) {
 inline bool Deserialize(std::span<const uint8_t> payload, ClientHelloMessage& message, std::string& error) {
     ByteReader reader(payload);
     if (!reader.ReadU16(message.requestedProtocolVersion) || !reader.ReadU32(message.buildCompatibilityHash) ||
-        !reader.ReadString(message.playerName, 32) || !reader.ReadString(message.authToken, 2048)) {
+        !reader.ReadString(message.playerName, policy::protocol_limits::kMaxPlayerNameLength) ||
+        !reader.ReadString(message.authToken, policy::protocol_limits::kMaxAuthTokenLength)) {
         error = "invalid ClientHello";
         return false;
     }
@@ -218,7 +218,8 @@ inline bool Deserialize(std::span<const uint8_t> payload, SpawnPlayerMessage& me
     uint32_t playerIdRaw = 0;
     uint32_t entityIdRaw = 0;
     if (!reader.ReadU32(playerIdRaw) || !reader.ReadU32(entityIdRaw) || !reader.ReadFloat(message.spawnPosition.x) ||
-        !reader.ReadFloat(message.spawnPosition.y) || !reader.ReadString(message.displayName, 64)) {
+        !reader.ReadFloat(message.spawnPosition.y) ||
+        !reader.ReadString(message.displayName, policy::protocol_limits::kMaxSpawnDisplayNameLength)) {
         error = "invalid SpawnPlayer";
         return false;
     }

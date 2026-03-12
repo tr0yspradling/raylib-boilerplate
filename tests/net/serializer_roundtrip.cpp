@@ -129,7 +129,7 @@ int main() {
     assert(inChunkResyncRequest.clientVersion == outChunkResyncRequest.clientVersion);
 
     const net::ResyncRequiredMessage outResync{
-        .reasonCode = 5101,
+        .reasonCode = net::policy::ToInt(net::policy::ResyncReasonCode::InvalidChunkInterestHint),
         .reason = "invalid chunk hint",
     };
     const std::vector<uint8_t> resyncPayload = net::Serialize(outResync);

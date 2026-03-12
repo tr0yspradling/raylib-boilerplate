@@ -11,19 +11,12 @@
 #include "shared/game/chunk_streaming.hpp"
 #include "shared/game/validation.hpp"
 #include "shared/game/world.hpp"
+#include "shared/net/net_policy.hpp"
 #include "shared/net/protocol.hpp"
 #include "shared/net/send_policy.hpp"
 #include "shared/net/transport_gns.hpp"
 
 namespace client::runtime {
-
-namespace {
-
-constexpr auto kPingInterval = std::chrono::milliseconds{1000};
-constexpr auto kChunkHintInterval = std::chrono::milliseconds{500};
-constexpr auto kChunkResyncCooldown = std::chrono::milliseconds{250};
-
-}  // namespace
 
 MultiplayerSessionService::MultiplayerSessionService(ClientConfig& config, game::FixedStep& fixedStep) :
     MultiplayerSessionService(config, fixedStep, std::make_unique<net::TransportGns>()) {}
@@ -38,7 +31,8 @@ MultiplayerSessionService::~MultiplayerSessionService() = default;
 
 void MultiplayerSessionService::Shutdown(ClientSessionState& session) {
     if (transport_->IsInitialized() && session.connected && session.serverConnection != net::kInvalidConnectionHandle) {
-        transport_->Close(session.serverConnection, 0, "client shutdown", false);
+        transport_->Close(session.serverConnection, net::policy::ToInt(net::policy::DisconnectCode::ClientShutdown),
+                          "client shutdown", false);
     }
     if (transport_->IsInitialized()) {
         transport_->Shutdown();
@@ -61,7 +55,10 @@ bool MultiplayerSessionService::EnsureTransportInitialized(std::string& error) {
     }
 
     if (!transport_->Initialize(
-            net::TransportConfig{.isServer = false, .debugVerbosity = 4, .allowUnencryptedDev = true}, error)) {
+            net::TransportConfig{.isServer = false,
+                                 .debugVerbosity = net::policy::kTransportDebugVerbosity,
+                                 .allowUnencryptedDev = net::policy::kAllowUnencryptedDevTransport},
+            error)) {
         return false;
     }
 
@@ -92,14 +89,15 @@ void MultiplayerSessionService::UpdateCadence(const ClientFlowState& flow, Clien
     }
 
     const auto sinceLastPing = std::chrono::duration_cast<std::chrono::milliseconds>(now - session.lastPingSentAt);
-    if (sinceLastPing >= kPingInterval) {
+    if (sinceLastPing >= net::policy::client::kPingInterval) {
         SendPing(session);
         session.lastPingSentAt = now;
     }
 
     const auto sinceLastChunkHint =
         std::chrono::duration_cast<std::chrono::milliseconds>(now - session.lastChunkHintSentAt);
-    if (session.serverWelcomed && IsLocalPlayerReady(session) && sinceLastChunkHint >= kChunkHintInterval) {
+    if (session.serverWelcomed && IsLocalPlayerReady(session) &&
+        sinceLastChunkHint >= net::policy::client::kChunkHintInterval) {
         SendChunkInterestHint(session);
         session.lastChunkHintSentAt = now;
     }
@@ -193,7 +191,8 @@ void MultiplayerSessionService::HandleIncomingPackets(ClientFlowState& flow, Cli
             session.connected = false;
             ResetSession(flow, session);
             if (connection != net::kInvalidConnectionHandle) {
-                transport_->Close(connection, 4002, flow.disconnectReason, false);
+                transport_->Close(connection, net::policy::ToInt(net::policy::DisconnectCode::ClientProtocolVersionMismatch),
+                                  flow.disconnectReason, false);
             }
             continue;
         }
@@ -293,7 +292,7 @@ void MultiplayerSessionService::OnConnectedToServer(ClientFlowState& flow, Clien
     hello.requestedProtocolVersion = net::kProtocolVersion;
     hello.buildCompatibilityHash = config_.buildCompatibilityHash;
     hello.playerName = config_.playerName;
-    hello.authToken = "dev";
+    hello.authToken = std::string{net::policy::kDevAuthToken};
 
     const std::vector<uint8_t> payload = net::Serialize(hello);
     const std::vector<uint8_t> packet = net::BuildPacket(net::MessageId::ClientHello, payload);
@@ -307,7 +306,8 @@ void MultiplayerSessionService::OnConnectedToServer(ClientFlowState& flow, Clien
         session.connected = false;
         ResetSession(flow, session);
         if (connection != net::kInvalidConnectionHandle) {
-            transport_->Close(connection, 4001, flow.disconnectReason, false);
+            transport_->Close(connection, net::policy::ToInt(net::policy::DisconnectCode::ClientHelloSendFailed),
+                              flow.disconnectReason, false);
         }
     }
 }
@@ -320,7 +320,8 @@ void MultiplayerSessionService::HandleServerWelcome(const net::ServerWelcomeMess
         session.connected = false;
         ResetSession(flow, session);
         if (connection != net::kInvalidConnectionHandle) {
-            transport_->Close(connection, 4003, flow.disconnectReason, false);
+            transport_->Close(connection, net::policy::ToInt(net::policy::DisconnectCode::ClientWelcomeProtocolMismatch),
+                              flow.disconnectReason, false);
         }
         return;
     }
@@ -333,7 +334,8 @@ void MultiplayerSessionService::HandleServerWelcome(const net::ServerWelcomeMess
         session.connected = false;
         ResetSession(flow, session);
         if (connection != net::kInvalidConnectionHandle) {
-            transport_->Close(connection, 4004, flow.disconnectReason, false);
+            transport_->Close(connection, net::policy::ToInt(net::policy::DisconnectCode::ClientInvalidServerKinematics),
+                              flow.disconnectReason, false);
         }
         return;
     }
@@ -480,7 +482,7 @@ void MultiplayerSessionService::HandleResyncRequired(const net::ResyncRequiredMe
     session.chunkResyncRequestedAt.clear();
     session.chunkVersionConflictCount = 0;
     flow.disconnectReason = message.reason;
-    session.lastChunkHintSentAt = std::chrono::steady_clock::now() - kPingInterval;
+    session.lastChunkHintSentAt = std::chrono::steady_clock::now() - net::policy::client::kPingInterval;
 }
 
 void MultiplayerSessionService::HandleDisconnectReason(const net::DisconnectReasonMessage& message, ClientFlowState& flow,
@@ -511,7 +513,9 @@ void MultiplayerSessionService::SendChunkInterestHint(ClientSessionState& sessio
     const net::ChunkInterestHintMessage hint{
         .centerChunkX = center.x,
         .centerChunkY = center.y,
-        .radiusChunks = static_cast<uint16_t>(std::clamp(worldConfig.interestRadiusChunks, 1, 24)),
+        .radiusChunks = static_cast<uint16_t>(std::clamp(worldConfig.interestRadiusChunks,
+                                                         static_cast<int>(net::policy::chunk_interest::kMinRequestedRadius),
+                                                         static_cast<int>(net::policy::chunk_interest::kExpandedMaxRequestedRadius))),
     };
 
     const std::vector<uint8_t> payload = net::Serialize(hint);
@@ -533,7 +537,7 @@ void MultiplayerSessionService::RequestChunkResync(ClientSessionState& session, 
     const auto it = session.chunkResyncRequestedAt.find(coord);
     if (it != session.chunkResyncRequestedAt.end()) {
         const auto since = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second);
-        if (since < kChunkResyncCooldown) {
+        if (since < net::policy::client::kChunkResyncCooldown) {
             return;
         }
     }

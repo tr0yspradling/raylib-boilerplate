@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "client/core/client_config.hpp"
+#include "client/core/client_config_policy.hpp"
 #include "client/core/menu_model.hpp"
 #include "client/core/runtime_state.hpp"
 #include "client/core/scene.hpp"
@@ -114,9 +115,9 @@ public:
             field == core::JoinFormField::Name;
     }
 
-    std::string host = "127.0.0.1";
-    std::string port = "27020";
-    std::string playerName = "player";
+    std::string host = std::string{client::core::policy::kDefaultServerHost};
+    std::string port = std::to_string(client::core::policy::kDefaultServerPort);
+    std::string playerName = std::string{client::core::policy::kDefaultPlayerName};
     bool editing = false;
 
 private:
@@ -192,14 +193,14 @@ public:
             field == OptionsField::TargetFps || field == OptionsField::InterpolationDelay;
     }
 
-    std::string playerName = "player";
-    std::string host = "127.0.0.1";
-    std::string port = "27020";
-    std::string windowWidth = "1600";
-    std::string windowHeight = "900";
-    std::string targetFps = "120";
-    std::string interpolationDelay = "2";
-    bool debugOverlayDefault = true;
+    std::string playerName = std::string{client::core::policy::kDefaultPlayerName};
+    std::string host = std::string{client::core::policy::kDefaultServerHost};
+    std::string port = std::to_string(client::core::policy::kDefaultServerPort);
+    std::string windowWidth = std::to_string(client::core::policy::kDefaultWindowWidth);
+    std::string windowHeight = std::to_string(client::core::policy::kDefaultWindowHeight);
+    std::string targetFps = std::to_string(client::core::policy::kDefaultTargetFps);
+    std::string interpolationDelay = std::to_string(client::core::policy::kDefaultInterpolationDelayTicks);
+    bool debugOverlayDefault = client::core::policy::kDefaultDebugOverlayEnabled;
     bool editing = false;
 
 private:

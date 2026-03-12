@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "client/components/components.hpp"
+#include "client/render/render_policy.hpp"
 
 namespace client::render {
 
@@ -14,33 +15,38 @@ namespace client::render {
 
     switch (activeScene) {
     case core::SceneKind::Splash:
-        state.title = "Authoritative Multiplayer";
-        state.subtitle = "raylib runtime bootstrap";
-        state.footer = "Press Enter/Space to continue";
+        state.title = std::string{policy::status_copy::kSplashTitle};
+        state.subtitle = std::string{policy::status_copy::kSplashSubtitle};
+        state.footer = std::string{policy::status_copy::kSplashFooter};
         break;
     case core::SceneKind::Connecting:
-        state.title = "Joining Dedicated Server";
-        state.subtitle = runtimeStatus.empty() ? "Connecting to authoritative host..." : std::string{runtimeStatus};
-        state.footer = "Press Esc to cancel";
+        state.title = std::string{policy::status_copy::kConnectingTitle};
+        state.subtitle = runtimeStatus.empty() ? std::string{policy::status_copy::kConnectingSubtitle}
+                                               : std::string{runtimeStatus};
+        state.footer = std::string{policy::status_copy::kConnectingFooter};
         break;
     case core::SceneKind::StartingServer:
-        state.title = "Starting Local Dedicated Server";
-        state.subtitle = runtimeStatus.empty() ? "Launching sibling game_server..." : std::string{runtimeStatus};
+        state.title = std::string{policy::status_copy::kStartingServerTitle};
+        state.subtitle = runtimeStatus.empty() ? std::string{policy::status_copy::kStartingServerSubtitle}
+                                               : std::string{runtimeStatus};
         break;
     case core::SceneKind::GameplaySingleplayer:
-        state.title = "Singleplayer Sandbox";
-        state.subtitle = runtimeStatus.empty() ? "Local authoritative sandbox active" : std::string{runtimeStatus};
-        state.footer = "Press Esc to return to menu";
+        state.title = std::string{policy::status_copy::kSingleplayerTitle};
+        state.subtitle = runtimeStatus.empty() ? std::string{policy::status_copy::kSingleplayerSubtitle}
+                                               : std::string{runtimeStatus};
+        state.footer = std::string{policy::status_copy::kSingleplayerFooter};
         break;
     case core::SceneKind::Options:
-        state.title = "Options";
-        state.subtitle = runtimeStatus.empty() ? "Persist local client preferences" : std::string{runtimeStatus};
-        state.footer = "Navigate and save preferences";
+        state.title = std::string{policy::status_copy::kOptionsTitle};
+        state.subtitle = runtimeStatus.empty() ? std::string{policy::status_copy::kOptionsSubtitle}
+                                               : std::string{runtimeStatus};
+        state.footer = std::string{policy::status_copy::kOptionsFooter};
         break;
     case core::SceneKind::Disconnected:
-        state.title = "Disconnected";
-        state.subtitle = disconnectReason.empty() ? "Connection closed" : std::string{disconnectReason};
-        state.footer = "Press Enter or Esc to return to menu";
+        state.title = std::string{policy::status_copy::kDisconnectedTitle};
+        state.subtitle = disconnectReason.empty() ? std::string{policy::status_copy::kDisconnectedSubtitle}
+                                                  : std::string{disconnectReason};
+        state.footer = std::string{policy::status_copy::kDisconnectedFooter};
         break;
     case core::SceneKind::MainMenu:
     case core::SceneKind::JoinServer:

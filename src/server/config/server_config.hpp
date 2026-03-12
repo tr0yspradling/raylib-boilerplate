@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "server/config/server_config_policy.hpp"
 #include "shared/game/entity.hpp"
 #include "shared/game/world.hpp"
 #include "shared/net/auth.hpp"
@@ -10,19 +11,19 @@
 namespace server {
 
 struct ServerConfig {
-    std::string bindAddress = "0.0.0.0";
-    uint16_t listenPort = 27020;
-    int simulationTickHz = 30;
-    int snapshotRateHz = 15;
-    int maxClients = 64;
-    int maxInputFramesPerSecond = 120;
-    int maxChunkHintsPerSecond = 30;
-    int maxChunkResyncRequestsPerSecond = 60;
-    int metricsLogIntervalSeconds = 10;
+    std::string bindAddress = std::string{config::policy::kDefaultBindAddress};
+    uint16_t listenPort = config::policy::kDefaultListenPort;
+    int simulationTickHz = config::policy::kDefaultSimulationTickHz;
+    int snapshotRateHz = config::policy::kDefaultSnapshotRateHz;
+    int maxClients = config::policy::kDefaultMaxClients;
+    int maxInputFramesPerSecond = config::policy::kDefaultMaxInputFramesPerSecond;
+    int maxChunkHintsPerSecond = config::policy::kDefaultMaxChunkHintsPerSecond;
+    int maxChunkResyncRequestsPerSecond = config::policy::kDefaultMaxChunkResyncRequestsPerSecond;
+    int metricsLogIntervalSeconds = config::policy::kDefaultMetricsLogIntervalSeconds;
     bool enforceBuildHash = false;
     uint32_t requiredBuildHash = 0;
     shared::net::AuthMode authMode = shared::net::AuthMode::DevInsecure;
-    std::string persistencePath = "server_data/world_state.txt";
+    std::string persistencePath = std::string{config::policy::kDefaultPersistencePath};
     shared::game::WorldConfig worldConfig{};
     shared::game::PlayerKinematicsConfig playerKinematics{};
 

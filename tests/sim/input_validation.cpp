@@ -1,5 +1,6 @@
 #include <cassert>
 
+#include "shared/game/game_policy.hpp"
 #include "shared/game/prediction.hpp"
 #include "shared/game/validation.hpp"
 
@@ -13,17 +14,18 @@ int main() {
 
     assert(ValidatePlayerInputFrame(input, 9) == PlayerInputValidationError::None);
 
-    input.moveX = 2.0f;
+    input.moveX = policy::validation::kDefaultMaxAbsMoveAxis + 1.0f;
     assert(ValidatePlayerInputFrame(input, 9) == PlayerInputValidationError::MoveAxisOutOfRange);
 
     input.moveX = 0.5f;
-    assert(ValidatePlayerInputFrame(input, 5000) == PlayerInputValidationError::SequenceTooOld);
+    assert(ValidatePlayerInputFrame(input, input.sequence + policy::validation::kDefaultMaxSequenceBacktrack + 1U) ==
+        PlayerInputValidationError::SequenceTooOld);
 
     PlayerKinematicsConfig kinematics;
     assert(ValidatePlayerKinematicsConfig(kinematics) == PlayerKinematicsValidationError::None);
-    kinematics.gravity = 1.0f;
+    kinematics.gravity = -policy::player::kDefaultGravity;
     assert(ValidatePlayerKinematicsConfig(kinematics) == PlayerKinematicsValidationError::InvalidGravity);
-    kinematics.gravity = -24.0f;
+    kinematics.gravity = policy::player::kDefaultGravity;
     kinematics.maxX = kinematics.minX;
     assert(ValidatePlayerKinematicsConfig(kinematics) == PlayerKinematicsValidationError::InvalidHorizontalBounds);
 

@@ -7,6 +7,8 @@
 #include <string_view>
 #include <system_error>
 
+#include "client/core/client_config_policy.hpp"
+
 namespace client::core {
 
 namespace {
@@ -45,24 +47,27 @@ namespace {
 }
 
 void ClampClientConfig(client::ClientConfig& config) {
-    config.serverPort = static_cast<uint16_t>(std::clamp<int>(config.serverPort, 1, 65535));
-    config.windowWidth = std::clamp(config.windowWidth, 640, 3840);
-    config.windowHeight = std::clamp(config.windowHeight, 360, 2160);
-    config.targetFps = std::clamp(config.targetFps, 30, 360);
-    config.simulationTickHz = std::clamp(config.simulationTickHz, 1, 240);
-    config.interpolationDelayTicks = std::clamp(config.interpolationDelayTicks, 0, 10);
+    config.serverPort =
+        static_cast<uint16_t>(std::clamp<int>(config.serverPort, policy::kMinServerPort, policy::kMaxServerPort));
+    config.windowWidth = std::clamp(config.windowWidth, policy::kMinWindowWidth, policy::kMaxWindowWidth);
+    config.windowHeight = std::clamp(config.windowHeight, policy::kMinWindowHeight, policy::kMaxWindowHeight);
+    config.targetFps = std::clamp(config.targetFps, policy::kMinTargetFps, policy::kMaxTargetFps);
+    config.simulationTickHz =
+        std::clamp(config.simulationTickHz, policy::kMinSimulationTickHz, policy::kMaxSimulationTickHz);
+    config.interpolationDelayTicks = std::clamp(config.interpolationDelayTicks, policy::kMinInterpolationDelayTicks,
+                                                policy::kMaxInterpolationDelayTicks);
     if (config.playerName.empty()) {
-        config.playerName = "player";
+        config.playerName = std::string{policy::kDefaultPlayerName};
     }
     if (config.serverHost.empty()) {
-        config.serverHost = "127.0.0.1";
+        config.serverHost = std::string{policy::kDefaultServerHost};
     }
 }
 
 }  // namespace
 
 std::filesystem::path DefaultClientConfigPath() {
-    return std::filesystem::path{"client_data"} / "client.cfg";
+    return policy::DefaultClientConfigPath();
 }
 
 client::ClientConfig LoadClientConfigFile(const std::filesystem::path& path, std::string& warning) {
@@ -141,7 +146,7 @@ bool SaveClientConfigFile(const client::ClientConfig& config, const std::filesys
         return false;
     }
 
-    file << "# Client preferences\n";
+    file << policy::kConfigHeader << '\n';
     file << "host=" << saved.serverHost << '\n';
     file << "port=" << saved.serverPort << '\n';
     file << "player_name=" << saved.playerName << '\n';

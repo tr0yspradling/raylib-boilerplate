@@ -3,6 +3,8 @@
 #include <chrono>
 #include <thread>
 
+#include "server/runtime/server_runtime_policy.hpp"
+
 namespace server::app {
 
 ServerApp::ServerApp(ServerConfig config) : runtime_(std::move(config)) {}
@@ -29,7 +31,7 @@ int ServerApp::Run() {
         const std::chrono::duration<double> frameDelta = now - lastFrameAt;
         lastFrameAt = now;
         world_.progress(static_cast<ecs_ftime_t>(frameDelta.count()));
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(runtime::policy::kServerLoopSleep);
     }
 
     runtime_.Shutdown();

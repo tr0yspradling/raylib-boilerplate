@@ -3,6 +3,7 @@
 #include <string>
 
 #include "client/core/config.hpp"
+#include "client/core/client_config_policy.hpp"
 
 int main() {
     namespace fs = std::filesystem;
@@ -40,7 +41,17 @@ int main() {
     const client::ClientConfig missing =
         client::core::LoadClientConfigFile(tempRoot / "missing.cfg", warning);
     assert(warning.empty());
-    assert(missing.serverHost == "127.0.0.1");
+    assert(missing.serverHost == std::string{client::core::policy::kDefaultServerHost});
+    assert(missing.serverPort == client::core::policy::kDefaultServerPort);
+    assert(missing.playerName == std::string{client::core::policy::kDefaultPlayerName});
+    assert(missing.windowWidth == client::core::policy::kDefaultWindowWidth);
+    assert(missing.windowHeight == client::core::policy::kDefaultWindowHeight);
+    assert(missing.targetFps == client::core::policy::kDefaultTargetFps);
+    assert(missing.interpolationDelayTicks == client::core::policy::kDefaultInterpolationDelayTicks);
+    assert(missing.debugOverlayDefault == client::core::policy::kDefaultDebugOverlayEnabled);
+    assert(client::core::policy::DefaultClientConfigPath() ==
+        (fs::path{std::string{client::core::policy::kConfigDirectoryName}} /
+         std::string{client::core::policy::kConfigFileName}));
 
     fs::remove_all(tempRoot);
     return 0;
